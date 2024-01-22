@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "983240692999",
-    "project_id": "rtx-alert-app",
-    "storage_bucket": "rtx-alert-app.appspot.com"
+    "project_number": "231818387263",
+    "project_id": "rtx-alert-app-b343c",
+    "storage_bucket": "rtx-alert-app-b343c.appspot.com"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:983240692999:android:5fdbc931af308edd59e1a2",
+        "mobilesdk_app_id": "1:231818387263:android:d1f34087c6d9529321fd8a",
         "android_client_info": {
           "package_name": "com.example.rtx_alert_app"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyAVTKCjLysRbU9YxZYxxbFq5VLIakLXKPw"
+          "current_key": "AIzaSyBh-1YgAOjs6nepzwkd6Artw7JisnywkME"
         }
       ],
       "services": {

@@ -1,5 +1,10 @@
+import 'package:firebase_auth/firebase_auth.dart';
+
 import 'package:flutter/material.dart';
 import 'package:rtx_alert_app/components/my_button.dart';
+import 'package:rtx_alert_app/pages/home.dart';
+import 'package:rtx_alert_app/services/auth.dart';
+
 
 class LoginPage extends StatefulWidget {
   final Function()? onTap;
@@ -9,13 +14,38 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-void signUserIn() {
-  // TODO: implement signUserIn
-}
+
 
 class _LoginPageState extends State<LoginPage> {
+
+  TextEditingController emailController = TextEditingController();
+  TextEditingController passwordController = TextEditingController();
+
+  @override
+  void dispose(){
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+
+    final FirebaseAuthService auth = FirebaseAuthService();
+
+    void signIn() async {
+      String email = emailController.text;
+      String password = passwordController.text;
+
+      User? user = await auth.signInWithEmailAndPassword(email, password);
+
+
+      if (!context.mounted) return;
+      if (user != null){
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const HomePage()));
+      }
+    }
+
     return Scaffold(
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -48,11 +78,12 @@ class _LoginPageState extends State<LoginPage> {
             ),
       
       
-            const Padding(
-              padding: EdgeInsets.all(8.0),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
               child: TextField(
+                controller: emailController,
                 keyboardType:  TextInputType.emailAddress,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   hintText: "Email",
                   prefixIcon: Icon(Icons.mail, color: Colors.black)
                 )
@@ -63,21 +94,27 @@ class _LoginPageState extends State<LoginPage> {
             const SizedBox(
               height: 28.0
             ),
-            const TextField(
-              obscureText: true,
-              decoration: InputDecoration(
-                hintText: "Password",
-                prefixIcon: Icon(Icons.password, color: Colors.black)
+
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: TextField(
+                controller: passwordController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  hintText: "Password",
+                  prefixIcon: Icon(Icons.password, color: Colors.black)
+                )
               )
             ),
+
 
             const SizedBox(
               height: 25.0,
             ),
 
             // log in button
-            const MyButton(
-              onTap: signUserIn,
+            MyButton(
+              onTap: signIn,
               text: 'Sign In',
             ),
       
@@ -109,3 +146,4 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
+
