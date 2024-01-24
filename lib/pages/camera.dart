@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:rtx_alert_app/pages/home.dart';
-
+import 'package:rtx_alert_app/pages/home_page.dart';
 class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
 
