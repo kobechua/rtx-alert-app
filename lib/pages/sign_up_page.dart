@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:rtx_alert_app/components/my_button.dart';
 import 'package:rtx_alert_app/services/auth.dart';
-import 'package:rtx_alert_app/pages/home.dart';
+// import 'package:rtx_alert_app/pages/home.dart';
 import 'package:rtx_alert_app/pages/home_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 // import 'package:firebase_core/firebase_core.dart';
