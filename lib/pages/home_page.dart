@@ -90,43 +90,52 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    if(_isCameraInitialized) {
-      return Scaffold(
-        body: Stack(
-          children: [
-            CameraPreview(cameraController),
-            Positioned(
-              top: 10,
-              right: 10,
-              child: latitude != null && longitude != null
-                  ? Text('Lat: $latitude, Lon: $longitude',
-                      style: const TextStyle(color: Colors.white))
-                  : const CircularProgressIndicator(),
-            ),
-            GestureDetector(
-              onTap: () {
-
-              },
-              child: button(Icons.flip_camera_android_outlined, Alignment.bottomLeft),
-            ),
-            GestureDetector(
-              onTap: () {
-
-              },
-              child: button(Icons.camera_alt_outlined, Alignment.bottomCenter),
-            ),
-          ],
-        ),
-      );
-    } else {
-      return const SizedBox();
-    }
-
-    
+@override
+Widget build(BuildContext context) {
+  if (_isCameraInitialized) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          CameraPreview(cameraController),
+          Positioned(
+            top: 10,
+            right: 10,
+            child: latitude != null && longitude != null
+                ? Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.black54, // Background color
+                      borderRadius: BorderRadius.circular(10), // Rounded corners
+                    ),
+                    child: Text(
+                      'LAT: $latitude, \nLON: $longitude',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  )
+                : const CircularProgressIndicator(),
+          ),
+          GestureDetector(
+            onTap: () {
+              // Add your onTap functionality here
+            },
+            child: button(Icons.flip_camera_android_outlined, Alignment.bottomLeft),
+          ),
+          GestureDetector(
+            onTap: () {
+              // Add your onTap functionality here
+            },
+            child: button(Icons.camera_alt_outlined, Alignment.bottomCenter),
+          ),
+        ],
+      ),
+    );
+  } else {
+    return const SizedBox();
   }
-
+}
   Widget button(IconData icon, Alignment alignment) {
     return Align(
       alignment: alignment,
