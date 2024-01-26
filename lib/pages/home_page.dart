@@ -82,8 +82,6 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-
-
   @override
   void dispose() {
     cameraController.dispose();
@@ -125,7 +123,8 @@ Widget build(BuildContext context) {
           ),
           GestureDetector(
             onTap: () {
-              // Add your onTap functionality here
+              cameraController.takePicture();
+              
             },
             child: button(Icons.camera_alt_outlined, Alignment.bottomCenter),
           ),
@@ -135,7 +134,10 @@ Widget build(BuildContext context) {
   } else {
     return const SizedBox();
   }
+  
 }
+
+
   Widget button(IconData icon, Alignment alignment) {
     return Align(
       alignment: alignment,
@@ -165,6 +167,4 @@ Widget build(BuildContext context) {
       )
     );
   }
-
-
 }
