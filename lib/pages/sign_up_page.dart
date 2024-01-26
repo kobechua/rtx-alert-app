@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:rtx_alert_app/components/my_button.dart';
-import 'package:rtx_alert_app/services/auth.dart';
-// import 'package:rtx_alert_app/pages/home.dart';
 import 'package:rtx_alert_app/pages/home_page.dart';
+import 'package:rtx_alert_app/services/auth.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 // import 'package:firebase_core/firebase_core.dart';
 
@@ -61,113 +60,117 @@ class _SignUpPageState extends State<SignUpPage> {
 
 
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("RTX Alert App", style: TextStyle(
-              color: Colors.black, 
-              fontSize:28.0, 
-              fontWeight: FontWeight.bold,
-              )
-            ),
-                
-                
-            const Text(
-              "Sign Up Page",
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: 44.0,
-                fontWeight: FontWeight.bold
-              ),
-            ),
-                
-            //Email Field
-            const SizedBox(        
-              height: 34.0
-            ),
-                
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: TextFormField(
-                controller: emailController,
-                keyboardType:  TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  hintText: "Email",
-                  prefixIcon: Icon(Icons.mail, color: Colors.black)
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.white24,
+              Colors.black87,
+            ],
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+        
+        
+              const Text("RTX Alert App", style: TextStyle(
+                color: Colors.black, 
+                fontSize:28.0, 
+                fontWeight: FontWeight.bold,
                 )
               ),
-            ),
-                
-            //Password Field
-            const SizedBox(
-              height: 10.0
-            ),
-          
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: TextFormField(
-
-                controller: passwordController,
+        
+        
+              const Text(
+                "Sign Up Page",
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 44.0,
+                  fontWeight: FontWeight.bold
+                ),
+              ),
+        
+              //Email Field
+              const SizedBox(        
+                height: 44.0
+              ),
+        
+        
+              const Padding(
+                padding: EdgeInsets.all(8.0),
+                child: TextField(
+                  keyboardType:  TextInputType.emailAddress,
+                  decoration: InputDecoration(
+                    hintText: "Email",
+                    prefixIcon: Icon(Icons.mail, color: Colors.black)
+                  )
+                ),
+              ),
+        
+              //Password Field
+              const SizedBox(
+                height: 28.0
+              ),
+              const TextField(
                 obscureText: true,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: "Password",
                   prefixIcon: Icon(Icons.password, color: Colors.black)
                 )
-              )
-            ),
-            //Confirm Password Field
-            const SizedBox(
-              height: 10.0
-            ),
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: TextFormField(
-                controller: confirmPasswordController,
+              ),
+        
+              //Confirm Password Field
+              const SizedBox(
+                height: 28.0
+              ),
+              const TextField(
                 obscureText: true,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: "Confirm Password",
                   prefixIcon: Icon(Icons.password, color: Colors.black)
                 )
-              )
-            ),
-          
-          
-            const SizedBox(
-              height: 17.0,
-            ),
-          
-            // log in button
-            MyButton(
-              onTap: signUp,
-              text: 'Create Account',
-            ),
-                
-            const SizedBox(
-              height: 17.0,
-            ),
-            
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('Already have an account?'),
-                const SizedBox(width: 4),
-                
-                GestureDetector(
-                  onTap: widget.onTap,
-                  child: const Text(
-                    'Login',
-                    style: TextStyle(
-                      color: Colors.blue, 
-                      fontWeight: FontWeight.bold
+              ),
+              const SizedBox(
+                height: 25.0,
+              ),
+        
+              // log in button
+              MyButton(
+                onTap: signUp,
+                text: 'Create Account',
+              ),
+        
+              const SizedBox(
+                height: 25.0,
+              ),
+              
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('Already have an account?',
+                  style: TextStyle(color: Colors.white),),
+                  const SizedBox(width: 4),
+                  
+                  GestureDetector(
+                    onTap: widget.onTap,
+                    child: const Text(
+                      'Login',
+                      style: TextStyle(
+                        color: Colors.blue, 
+                        fontWeight: FontWeight.bold
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
