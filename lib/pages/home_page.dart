@@ -1,7 +1,8 @@
-import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:rtx_alert_app/services/auth.dart';
+import 'package:rtx_alert_app/pages/camera/camera_handler.dart';
+import 'package:rtx_alert_app/services/location.dart';
+import 'package:camera/camera.dart';
+
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -11,85 +12,102 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  late List<CameraDescription> cameras;
-  late CameraController cameraController;
-  bool _isCameraInitialized = false;
 
-  //variables for latitude and longitude
-  double? latitude;
-  double? longitude;
+  LocationHandler location = LocationHandler();
+  String locationError = '';
+
+  // late List<CameraDescription> cameras;
+  // late CameraController cameraController;
+  // bool _isCameraInitialized = false;
+
+  // //variables for latitude and longitude
+  // double? latitude;
+  // double? longitude;
 
   @override
   void initState() {
     super.initState();
-    startCamera();
-    _getCurrentLocation();  //get current location
+    loadCameras();
+    initializeLocation();  //get current location
   }
   
-  //function to start camera
-  Future<void> startCamera() async {
-    try {
-      cameras = await availableCameras();
+  // //function to start camera
+  // Future<void> startCamera() async {
+  //   try {
+  //     cameras = await availableCameras();
       
-      cameraController = CameraController(
-        cameras[0], 
-        ResolutionPreset.high,
-        enableAudio: false,
-        );
+  //     cameraController = CameraController(
+  //       cameras[0], 
+  //       ResolutionPreset.high,
+  //       enableAudio: false,
+  //       );
 
-      await cameraController.initialize();
-      if (!mounted) return;
+  //     await cameraController.initialize();
+  //     if (!mounted) return;
 
-      setState(() {
-        _isCameraInitialized = true;
-      });  
-    } catch (e) {
-      print(e);
-    }      
-  }
+  //     setState(() {
+  //       _isCameraInitialized = true;
+  //     });  
+  //   } catch (e) {
+  //     print(e);
+  //   }      
+  // }
 
-  
   //function to obtain current location
-  Future<void> _getCurrentLocation() async {
-    bool serviceEnabled;
-    LocationPermission permission;
+  // Future<void> _getCurrentLocation() async {
+  //   bool serviceEnabled;
+  //   LocationPermission permission;
 
-    // Test if location services are enabled.
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      return Future.error('Location services are disabled.');
-    }
+  //   // Test if location services are enabled.
+  //   serviceEnabled = await Geolocator.isLocationServiceEnabled();
+  //   if (!serviceEnabled) {
+  //     return Future.error('Location services are disabled.');
+  //   }
 
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        return Future.error('Location permissions are denied');
-      }
-    }
+  //   permission = await Geolocator.checkPermission();
+  //   if (permission == LocationPermission.denied) {
+  //     permission = await Geolocator.requestPermission();
+  //     if (permission == LocationPermission.denied) {
+  //       return Future.error('Location permissions are denied');
+  //     }
+  //   }
 
-    if (permission == LocationPermission.deniedForever) {
-      return Future.error(
-          'Location permissions are permanently denied, we cannot request permissions.');
-    }
+  //   if (permission == LocationPermission.deniedForever) {
+  //     return Future.error(
+  //         'Location permissions are permanently denied, we cannot request permissions.');
+  //   }
 
+  //   try {
+  //     Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+  //     setState(() {
+  //       latitude = position.latitude;
+  //       longitude = position.longitude;
+  //     });
+  //   } catch (e) {
+  //     print(e);
+  //   }
+  // }
+
+  late List<CameraDescription> cameras;
+
+  
+  Future<void> loadCameras() async {
+    cameras = await availableCameras();
+    setState(() {});
+  }
+
+  Future<void> initializeLocation() async {
     try {
-      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      await location.getCurrentLocation();
+
+    }
+    catch (e){
       setState(() {
-        latitude = position.latitude;
-        longitude = position.longitude;
+        locationError = e.toString();
       });
-    } catch (e) {
-      print(e);
     }
   }
   
-
-  @override
-  void dispose() {
-    cameraController.dispose();
-    super.dispose();
-  }
 
   void _showBottomSheet(BuildContext context) {
     showModalBottomSheet(
@@ -146,15 +164,14 @@ class _HomePageState extends State<HomePage> {
 
 @override
 Widget build(BuildContext context) {
-  if (_isCameraInitialized) {
     return Scaffold(
       body: Stack(
         children: [
-          CameraPreview(cameraController),
+          CameraHandler(cameras: cameras),
           Positioned(
             top: 10,
             right: 10,
-            child: latitude != null && longitude != null
+            child: location.latitude != null && location.longitude != null
                 ? Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
@@ -162,7 +179,7 @@ Widget build(BuildContext context) {
                       borderRadius: BorderRadius.circular(10), // Rounded corners
                     ),
                     child: Text(
-                      'LAT: $latitude, \nLON: $longitude',
+                      'LAT: ${location.latitude}, \nLON: ${location.longitude}',
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -174,7 +191,7 @@ Widget build(BuildContext context) {
           
           GestureDetector(
             onTap: () {
-              cameraController.takePicture();
+              // CameraHandler.takePicture();
               
             },
             child: button(Icons.camera_alt_outlined, Alignment.bottomCenter),
@@ -184,19 +201,16 @@ Widget build(BuildContext context) {
             bottom: 20,
             child: FloatingActionButton(
               onPressed: () => _showBottomSheet(context),
-              child: Icon(Icons.menu),
               backgroundColor: Colors.white,
+              child:  const Icon(Icons.menu),
             ),
           ),
 
         ],
       ),
     );
-  } else {
-    return const SizedBox();
   }
   
-}
 
 
   Widget button(IconData icon, Alignment alignment) {
