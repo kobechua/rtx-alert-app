@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 class CameraHandler extends StatefulWidget {
   final List<CameraDescription> cameras;
 
-  const CameraHandler({Key? key, required this.cameras}) : super(key: key);
+  const CameraHandler({super.key, required this.cameras});
 
   @override
   State<CameraHandler> createState() => _CameraHandlerState();
