@@ -1,6 +1,7 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:rtx_alert_app/services/auth.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -47,6 +48,7 @@ class _HomePageState extends State<HomePage> {
     }      
   }
 
+  
   //function to obtain current location
   Future<void> _getCurrentLocation() async {
     bool serviceEnabled;
@@ -81,12 +83,66 @@ class _HomePageState extends State<HomePage> {
       print(e);
     }
   }
+  
 
   @override
   void dispose() {
     cameraController.dispose();
     super.dispose();
   }
+
+  void _showBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return Container(
+          height: 500, // Set height
+          color: Colors.black87, // Set background color
+          child: Column(
+            children: [
+              const SizedBox(height: 10),
+              ListTile(
+                title: const Text('Menu Item 1',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                onTap: () {
+                  // Handle tap
+                  Navigator.pop(context);
+                },
+              ),
+              const Divider(color: Colors.white10), // Divider between ListTiles
+              ListTile(
+                title: const Text('Menu Item 2',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                onTap: () {
+                  // Handle tap
+                  Navigator.pop(context);
+                },
+              ),
+              const Divider(color: Colors.white10), // Divider between ListTiles
+
+              // Add more items if needed
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+
+  
+
 
 @override
 Widget build(BuildContext context) {
@@ -115,12 +171,7 @@ Widget build(BuildContext context) {
                   )
                 : const CircularProgressIndicator(),
           ),
-          GestureDetector(
-            onTap: () {
-              // Add your onTap functionality here
-            },
-            child: button(Icons.flip_camera_android_outlined, Alignment.bottomLeft),
-          ),
+          
           GestureDetector(
             onTap: () {
               cameraController.takePicture();
@@ -128,6 +179,16 @@ Widget build(BuildContext context) {
             },
             child: button(Icons.camera_alt_outlined, Alignment.bottomCenter),
           ),
+          Positioned(
+            left: 20,
+            bottom: 20,
+            child: FloatingActionButton(
+              onPressed: () => _showBottomSheet(context),
+              child: Icon(Icons.menu),
+              backgroundColor: Colors.white,
+            ),
+          ),
+
         ],
       ),
     );
