@@ -98,15 +98,16 @@ class _SignUpPageState extends State<SignUpPage> {
         
               //Email Field
               const SizedBox(        
-                height: 44.0
+                height: 21.0
               ),
         
         
-              const Padding(
-                padding: EdgeInsets.all(8.0),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
                 child: TextField(
+                  controller: emailController,
                   keyboardType:  TextInputType.emailAddress,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     hintText: "Email",
                     prefixIcon: Icon(Icons.mail, color: Colors.black)
                   )
@@ -117,9 +118,10 @@ class _SignUpPageState extends State<SignUpPage> {
               const SizedBox(
                 height: 28.0
               ),
-              const TextField(
+              TextField(
+                controller: passwordController,
                 obscureText: true,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   hintText: "Password",
                   prefixIcon: Icon(Icons.password, color: Colors.black)
                 )
@@ -129,15 +131,16 @@ class _SignUpPageState extends State<SignUpPage> {
               const SizedBox(
                 height: 28.0
               ),
-              const TextField(
+              TextField(
+                controller: confirmPasswordController,
                 obscureText: true,
-                decoration: InputDecoration(
+                decoration: const  InputDecoration(
                   hintText: "Confirm Password",
                   prefixIcon: Icon(Icons.password, color: Colors.black)
                 )
               ),
               const SizedBox(
-                height: 25.0,
+                height: 28.0,
               ),
         
               // log in button
@@ -147,7 +150,7 @@ class _SignUpPageState extends State<SignUpPage> {
               ),
         
               const SizedBox(
-                height: 25.0,
+                height: 15.0,
               ),
               
               Row(
