@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:rtx_alert_app/pages/camera/camera_handler.dart';
 import 'package:rtx_alert_app/services/location.dart';
 import 'package:camera/camera.dart';
@@ -88,13 +90,20 @@ class _HomePageState extends State<HomePage> {
   //   }
   // }
 
-  late List<CameraDescription> cameras;
+  List<CameraDescription>? cameras;
 
   
   Future<void> loadCameras() async {
-    cameras = await availableCameras();
-    setState(() {});
+  try {
+    List<CameraDescription> loadedCameras = await availableCameras();
+    setState(() {
+      cameras = loadedCameras;
+    });
+  } catch (e) {
+    print(e);
   }
+}
+
 
   Future<void> initializeLocation() async {
     try {
@@ -167,7 +176,8 @@ Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
         children: [
-          CameraHandler(cameras: cameras),
+          if (cameras != null)
+            CameraHandler(cameras: cameras!),
           Positioned(
             top: 10,
             right: 10,
@@ -179,7 +189,7 @@ Widget build(BuildContext context) {
                       borderRadius: BorderRadius.circular(10), // Rounded corners
                     ),
                     child: Text(
-                      'LAT: ${location.latitude}, \nLON: ${location.longitude}',
+                      'LAT: ${location.latitude}, \nLON: ${location.longitude}, \nALT: ${location.altitude}',
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -187,6 +197,29 @@ Widget build(BuildContext context) {
                     ),
                   )
                 : const CircularProgressIndicator(),
+          ),
+          
+          Positioned(
+            top: 10,
+            left: 10,
+            child: ClipOval(
+              child: Container(
+                width: 100,  // Diameter of the circle
+                height: 100, // Diameter of the circle
+                child: FlutterMap(
+                  options: MapOptions(
+                    initialCenter: LatLng(location.latitude ?? 0, location.longitude ?? 0),
+                    initialZoom: 8.0,
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      subdomains: const ['a', 'b', 'c'],
+                    ),
+                  ],  
+                ),
+              ),
+            ),
           ),
           
           GestureDetector(
