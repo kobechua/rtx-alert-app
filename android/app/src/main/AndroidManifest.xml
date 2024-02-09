@@ -4,6 +4,7 @@
         android:label="rtx_alert_app"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        android:hardwareAccelerated="true"
         
         <activity
             android:name=".MainActivity"

@@ -38,6 +38,7 @@ dependencies:
   geolocator: ^10.1.0
   cupertino_icons: ^1.0.2
   camera: ^0.10.5+9
+  image_picker: ^1.0.7
 
   firebase_auth: ^4.16.0
   firebase_core: ^2.24.2

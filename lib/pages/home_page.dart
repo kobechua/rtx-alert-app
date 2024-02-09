@@ -4,6 +4,10 @@ import 'package:latlong2/latlong.dart';
 import 'package:rtx_alert_app/pages/camera/camera_handler.dart';
 import 'package:rtx_alert_app/services/location.dart';
 import 'package:camera/camera.dart';
+import 'package:rtx_alert_app/pages/camera/preview.dart';
+
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 
 class HomePage extends StatefulWidget {
@@ -14,84 +18,23 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-
+  
+  File? selectedImage;
   LocationHandler location = LocationHandler();
   String locationError = '';
-
-  // late List<CameraDescription> cameras;
-  // late CameraController cameraController;
-  // bool _isCameraInitialized = false;
-
-  // //variables for latitude and longitude
-  // double? latitude;
-  // double? longitude;
+  late final CameraActionController cameraActionController = CameraActionController();
+  CameraController? homePageCameraController;
 
   @override
   void initState() {
     super.initState();
     loadCameras();
     initializeLocation();  //get current location
+    cameraActionController.pickExistingPhoto = pickExistingPhoto;
+    cameraActionController.takePhotoWithCamera = (camController) => takePhoto(camController);
   }
-  
-  // //function to start camera
-  // Future<void> startCamera() async {
-  //   try {
-  //     cameras = await availableCameras();
-      
-  //     cameraController = CameraController(
-  //       cameras[0], 
-  //       ResolutionPreset.high,
-  //       enableAudio: false,
-  //       );
-
-  //     await cameraController.initialize();
-  //     if (!mounted) return;
-
-  //     setState(() {
-  //       _isCameraInitialized = true;
-  //     });  
-  //   } catch (e) {
-  //     print(e);
-  //   }      
-  // }
-
-  //function to obtain current location
-  // Future<void> _getCurrentLocation() async {
-  //   bool serviceEnabled;
-  //   LocationPermission permission;
-
-  //   // Test if location services are enabled.
-  //   serviceEnabled = await Geolocator.isLocationServiceEnabled();
-  //   if (!serviceEnabled) {
-  //     return Future.error('Location services are disabled.');
-  //   }
-
-  //   permission = await Geolocator.checkPermission();
-  //   if (permission == LocationPermission.denied) {
-  //     permission = await Geolocator.requestPermission();
-  //     if (permission == LocationPermission.denied) {
-  //       return Future.error('Location permissions are denied');
-  //     }
-  //   }
-
-  //   if (permission == LocationPermission.deniedForever) {
-  //     return Future.error(
-  //         'Location permissions are permanently denied, we cannot request permissions.');
-  //   }
-
-  //   try {
-  //     Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-  //     setState(() {
-  //       latitude = position.latitude;
-  //       longitude = position.longitude;
-  //     });
-  //   } catch (e) {
-  //     print(e);
-  //   }
-  // }
 
   List<CameraDescription>? cameras;
-
   
   Future<void> loadCameras() async {
   try {
@@ -100,15 +43,67 @@ class _HomePageState extends State<HomePage> {
       cameras = loadedCameras;
     });
   } catch (e) {
-    print(e);
+    debugPrint(e.toString());
   }
 }
 
+  Future<void> pickExistingPhoto() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      File selectedImageFile = File(image.path);
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => PreviewPage(previewImage: selectedImageFile),
+        ),
+      );
+    }
+  }
+
+  Future<void> takePhoto(CameraController camController) async {
+    final XFile image = await camController.takePicture();
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => PreviewPage(previewImage: File(image.path)),
+      ),
+    );
+  }
+
+  // Future<void> pickExistingPhoto() async {
+  //   final ImagePicker picker = ImagePicker();
+  //   final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+  //   if (image != null) {
+  //     File selectedImageFile = File(image.path);
+
+  //     if (!mounted) return;
+  //     Navigator.of(context).push(
+  //       MaterialPageRoute(
+  //         builder: (context) => PreviewPage(previewImage: selectedImageFile),
+  //       ),
+  //     );
+  //   }
+  // }
+
+  // Future<void> takePhoto(camController) async {
+  //   final File image = await camController.capturePhoto();
+
+  //   if (!mounted) return;
+  //   Navigator.of(context).push(
+  //     MaterialPageRoute(
+  //       builder: (context) => PreviewPage(previewImage: image),
+  //     ),
+  //   );
+  // }
+  
 
   Future<void> initializeLocation() async {
     try {
       await location.getCurrentLocation();
-
+      setState(() {
+        
+      });
     }
     catch (e){
       setState(() {
@@ -167,17 +162,27 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  @override
+  Widget build(BuildContext context) {
 
-  
+    CameraHandler camera = CameraHandler(
+      cameras: cameras!,
+      onControllerCreated: (controller) {
+        homePageCameraController = controller;
+        cameraActionController.setCameraController(controller);
+      }, 
+    //   onPhotoCaptured: (File capturedImage) {
 
+    // Navigator.of(context).push(MaterialPageRoute(
+    //   builder: (context) => PreviewPage(previewImage: capturedImage)));
+    // }
+    );
 
-@override
-Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
         children: [
           if (cameras != null)
-            CameraHandler(cameras: cameras!),
+            camera,
           Positioned(
             top: 10,
             right: 10,
@@ -224,8 +229,8 @@ Widget build(BuildContext context) {
           
           GestureDetector(
             onTap: () {
-              // CameraHandler.takePicture();
-              
+              cameraActionController.takePhotoWithCamera!(homePageCameraController!);
+
             },
             child: button(Icons.camera_alt_outlined, Alignment.bottomCenter),
           ),
@@ -238,7 +243,15 @@ Widget build(BuildContext context) {
               child:  const Icon(Icons.menu),
             ),
           ),
-
+          Positioned(
+            right: 20,
+            bottom: 20,
+            child: FloatingActionButton(
+              onPressed: () => cameraActionController.selectExistingPhoto(),
+              backgroundColor: Colors.white,
+              child:  const Icon(Icons.photo_album),
+            ),
+          ),
         ],
       ),
     );
