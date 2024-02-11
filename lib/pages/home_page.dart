@@ -120,14 +120,14 @@ class _HomePageState extends State<HomePage> {
       builder: (BuildContext context) {
         return Container(
           height: 500, // Set height
-          color: Colors.black87, // Set background color
+          color: Colors.transparent, // Set background color
           child: Column(
             children: [
               const SizedBox(height: 10),
               ListTile(
                 title: const Text('Menu Item 1',
                   style: TextStyle(
-                    color: Colors.white70,
+                    color: Colors.black87,
                     fontSize: 28,
                     fontWeight: FontWeight.bold
                   ),
@@ -138,11 +138,11 @@ class _HomePageState extends State<HomePage> {
                   Navigator.pop(context);
                 },
               ),
-              const Divider(color: Colors.white10), // Divider between ListTiles
+              const Divider(color: Colors.black26), // Divider between ListTiles
               ListTile(
                 title: const Text('Menu Item 2',
                   style: TextStyle(
-                    color: Colors.white70,
+                    color: Colors.black87,
                     fontSize: 28,
                     fontWeight: FontWeight.bold
                   ),
@@ -153,7 +153,7 @@ class _HomePageState extends State<HomePage> {
                   Navigator.pop(context);
                 },
               ),
-              const Divider(color: Colors.white10), // Divider between ListTiles
+              const Divider(color: Colors.black26), // Divider between ListTiles
 
               // Add more items if needed
             ],
