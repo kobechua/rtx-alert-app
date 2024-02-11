@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:rtx_alert_app/pages/camera/camera_handler.dart';
 import 'package:rtx_alert_app/services/location.dart';
@@ -162,100 +163,118 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-
-    CameraHandler camera = CameraHandler(
-      cameras: cameras!,
-      onControllerCreated: (controller) {
-        homePageCameraController = controller;
-        cameraActionController.setCameraController(controller);
-      }, 
-    //   onPhotoCaptured: (File capturedImage) {
-
-    // Navigator.of(context).push(MaterialPageRoute(
-    //   builder: (context) => PreviewPage(previewImage: capturedImage)));
-    // }
-    );
-
-    return Scaffold(
-      body: Stack(
-        children: [
-          if (cameras != null)
-            camera,
-          Positioned(
-            top: 10,
-            right: 10,
-            child: location.latitude != null && location.longitude != null
-                ? Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: Colors.black54, // Background color
-                      borderRadius: BorderRadius.circular(10), // Rounded corners
-                    ),
-                    child: Text(
-                      'LAT: ${location.latitude}, \nLON: ${location.longitude}, \nALT: ${location.altitude}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  )
-                : const CircularProgressIndicator(),
-          ),
-          
-          Positioned(
-            top: 10,
-            left: 10,
-            child: ClipOval(
-              child: Container(
-                width: 100,  // Diameter of the circle
-                height: 100, // Diameter of the circle
-                child: FlutterMap(
-                  options: MapOptions(
-                    initialCenter: LatLng(location.latitude ?? 0, location.longitude ?? 0),
-                    initialZoom: 8.0,
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      subdomains: const ['a', 'b', 'c'],
-                    ),
-                  ],  
-                ),
-              ),
-            ),
-          ),
-          
-          GestureDetector(
-            onTap: () {
-              cameraActionController.takePhotoWithCamera!(homePageCameraController!);
-
-            },
-            child: button(Icons.camera_alt_outlined, Alignment.bottomCenter),
-          ),
-          Positioned(
-            left: 20,
-            bottom: 20,
-            child: FloatingActionButton(
-              onPressed: () => _showBottomSheet(context),
-              backgroundColor: Colors.white,
-              child:  const Icon(Icons.menu),
-            ),
-          ),
-          Positioned(
-            right: 20,
-            bottom: 20,
-            child: FloatingActionButton(
-              onPressed: () => cameraActionController.selectExistingPhoto(),
-              backgroundColor: Colors.white,
-              child:  const Icon(Icons.photo_album),
-            ),
-          ),
-        ],
-      ),
+@override
+Widget build(BuildContext context) {
+  if (cameras == null) {
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
     );
   }
+
+  CameraHandler camera = CameraHandler(
+    cameras: cameras!,
+    onControllerCreated: (controller) {
+      homePageCameraController = controller;
+      cameraActionController.setCameraController(controller);
+    },
+  );
+
+  return Scaffold(
+    body: Stack(
+      children: [
+        if (cameras != null)
+          camera,
+        FutureBuilder<Position>(
+          future: location.getCurrentLocation(), // Fetch the current location
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const CircularProgressIndicator(); // Show loading indicator
+            } else if (snapshot.hasError) {
+              return Text('Error: ${snapshot.error}'); // Show error message
+            } else if (snapshot.hasData) {
+              // Once data is fetched, update the location display along with the map
+              final position = snapshot.data!;
+              return Stack(
+                children: [
+                  Positioned(
+                    top: 10,
+                    left: 10,
+                    child: ClipOval(
+                      child: Container(
+                        width: 100,  // Adjust size as needed
+                        height: 100, // Adjust size as needed
+                        child: FlutterMap(
+                          options: MapOptions(
+                            initialCenter: LatLng(position.latitude, position.longitude),
+                            initialZoom: 13.0,
+                          ),
+                          children: [
+                            TileLayer(
+                              urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                              subdomains: const ['a', 'b', 'c'],
+                            ),
+                          ],  
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.black54, // Background color
+                        borderRadius: BorderRadius.circular(10), // Rounded corners
+                      ),
+                      child: Text(
+                        'LAT: ${position.latitude}, \nLON: ${position.longitude}, \nALT: ${position.altitude}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Include other UI elements like GestureDetector for taking photos, FAB, etc., here
+                ],
+              );
+            } else {
+              return const Text('No location data'); // Handle the case where no data is returned
+            }
+          },
+        ),
+
+        // The rest of your UI elements, like GestureDetector for taking photos, FAB, etc.
+        GestureDetector(
+          onTap: () {
+            cameraActionController.takePhotoWithCamera!(homePageCameraController!);
+          },
+          child: button(Icons.camera_alt_outlined, Alignment.bottomCenter),
+        ),
+        Positioned(
+          left: 20,
+          bottom: 20,
+          child: FloatingActionButton(
+            onPressed: () => _showBottomSheet(context),
+            backgroundColor: Colors.white,
+            child: const Icon(Icons.menu),
+          ),
+        ),
+        Positioned(
+          right: 20,
+          bottom: 20,
+          child: FloatingActionButton(
+            onPressed: () => cameraActionController.selectExistingPhoto(),
+            backgroundColor: Colors.white,
+            child: const Icon(Icons.photo_album),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
   
 
 
@@ -272,7 +291,7 @@ class _HomePageState extends State<HomePage> {
         decoration: const BoxDecoration(
           shape: BoxShape.circle,
           color: Colors.white,
-          boxShadow: [
+          boxShadow: [ 
             BoxShadow(
               color: Colors.black26,
               offset: Offset(2, 2),
