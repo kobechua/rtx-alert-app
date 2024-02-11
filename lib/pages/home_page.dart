@@ -207,11 +207,24 @@ Widget build(BuildContext context) {
                           options: MapOptions(
                             initialCenter: LatLng(position.latitude, position.longitude),
                             initialZoom: 13.0,
+                            interactionOptions: const InteractionOptions(
+                              flags: InteractiveFlag.none,
+                            )
                           ),
                           children: [
                             TileLayer(
                               urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                               subdomains: const ['a', 'b', 'c'],
+                            ),
+                            MarkerLayer( // This is the new marker layer
+                              markers: [
+                                Marker(
+                                  width: 50.0,
+                                  height: 50.0,
+                                  point: LatLng(position.latitude, position.longitude),
+                                  child: const Icon(Icons.location_on, size: 35.0, color: Colors.red,),
+                                ),
+                              ],
                             ),
                           ],  
                         ),
