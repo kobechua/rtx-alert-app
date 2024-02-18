@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+
 import 'package:rtx_alert_app/pages/camera/camera_handler.dart';
+import 'package:rtx_alert_app/pages/greeting_page/greeting_page.dart';
 import 'package:rtx_alert_app/services/location.dart';
+import 'package:rtx_alert_app/services/auth.dart';
+
 import 'package:camera/camera.dart';
 import 'package:rtx_alert_app/pages/camera/preview.dart';
 
@@ -18,12 +22,12 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  
   File? selectedImage;
   LocationHandler location = LocationHandler();
   String locationError = '';
   late final CameraActionController cameraActionController = CameraActionController();
   CameraController? homePageCameraController;
+  final FirebaseAuthService auth = FirebaseAuthService();
 
   @override
   void initState() {
@@ -71,32 +75,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // Future<void> pickExistingPhoto() async {
-  //   final ImagePicker picker = ImagePicker();
-  //   final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-  //   if (image != null) {
-  //     File selectedImageFile = File(image.path);
-
-  //     if (!mounted) return;
-  //     Navigator.of(context).push(
-  //       MaterialPageRoute(
-  //         builder: (context) => PreviewPage(previewImage: selectedImageFile),
-  //       ),
-  //     );
-  //   }
-  // }
-
-  // Future<void> takePhoto(camController) async {
-  //   final File image = await camController.capturePhoto();
-
-  //   if (!mounted) return;
-  //   Navigator.of(context).push(
-  //     MaterialPageRoute(
-  //       builder: (context) => PreviewPage(previewImage: image),
-  //     ),
-  //   );
-  // }
-  
 
   Future<void> initializeLocation() async {
     try {
@@ -139,7 +117,7 @@ class _HomePageState extends State<HomePage> {
               ),
               const Divider(color: Colors.white10), // Divider between ListTiles
               ListTile(
-                title: const Text('Menu Item 2',
+                title: const Text('Sign Out',
                   style: TextStyle(
                     color: Colors.white70,
                     fontSize: 28,
@@ -148,8 +126,9 @@ class _HomePageState extends State<HomePage> {
                   textAlign: TextAlign.center,
                 ),
                 onTap: () {
-                  // Handle tap
-                  Navigator.pop(context);
+                  auth.signOut();
+                  if (!context.mounted) return;
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const GreetingPage()));
                 },
               ),
               const Divider(color: Colors.white10), // Divider between ListTiles
@@ -171,11 +150,6 @@ class _HomePageState extends State<HomePage> {
         homePageCameraController = controller;
         cameraActionController.setCameraController(controller);
       }, 
-    //   onPhotoCaptured: (File capturedImage) {
-
-    // Navigator.of(context).push(MaterialPageRoute(
-    //   builder: (context) => PreviewPage(previewImage: capturedImage)));
-    // }
     );
 
     return Scaffold(
