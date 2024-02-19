@@ -3,10 +3,12 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:rtx_alert_app/pages/camera/camera_handler.dart';
+import 'package:rtx_alert_app/pages/greeting_page/greeting_page.dart';
 import 'package:rtx_alert_app/services/location.dart';
 import 'package:camera/camera.dart';
 import 'package:rtx_alert_app/pages/camera/preview.dart';
-
+import 'package:rtx_alert_app/services/auth.dart';
+import 'package:rtx_alert_app/pages/fullscreen_map.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
@@ -25,12 +27,18 @@ class _HomePageState extends State<HomePage> {
   String locationError = '';
   late final CameraActionController cameraActionController = CameraActionController();
   CameraController? homePageCameraController;
+  final FirebaseAuthService auth = FirebaseAuthService();
+  bool _locationInitialized = false;
 
   @override
   void initState() {
     super.initState();
     loadCameras();
-    initializeLocation();  //get current location
+
+    if (!_locationInitialized) {
+      initializeLocation();                     //get current location once per session
+    }
+      //get current location
     cameraActionController.pickExistingPhoto = pickExistingPhoto;
     cameraActionController.takePhotoWithCamera = (camController) => takePhoto(camController);
   }
@@ -72,34 +80,11 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // Future<void> pickExistingPhoto() async {
-  //   final ImagePicker picker = ImagePicker();
-  //   final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-  //   if (image != null) {
-  //     File selectedImageFile = File(image.path);
 
-  //     if (!mounted) return;
-  //     Navigator.of(context).push(
-  //       MaterialPageRoute(
-  //         builder: (context) => PreviewPage(previewImage: selectedImageFile),
-  //       ),
-  //     );
-  //   }
-  // }
-
-  // Future<void> takePhoto(camController) async {
-  //   final File image = await camController.capturePhoto();
-
-  //   if (!mounted) return;
-  //   Navigator.of(context).push(
-  //     MaterialPageRoute(
-  //       builder: (context) => PreviewPage(previewImage: image),
-  //     ),
-  //   );
-  // }
-  
 
   Future<void> initializeLocation() async {
+    if (_locationInitialized) return;           //check if initialization has already occurred
+
     try {
       await location.getCurrentLocation();
       setState(() {
@@ -110,6 +95,8 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         locationError = e.toString();
       });
+    } finally {
+      _locationInitialized = true;              //Mark as initalized regardless of outcome
     }
   }
   
@@ -154,6 +141,37 @@ class _HomePageState extends State<HomePage> {
                 },
               ),
               const Divider(color: Colors.black26), // Divider between ListTiles
+              ListTile(
+                title: const Text('Menu Item 3',
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                onTap: () {
+                  // Handle tap
+                  Navigator.pop(context);
+                },
+              ),
+              const Divider(color: Colors.black26), // Divider between ListTiles
+              ListTile(
+                title: const Text('Sign Out',
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                onTap: () {
+                  auth.signOut();
+                  if (!context.mounted) return;
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const GreetingPage()));
+                },
+              ),
+              const Divider(color: Colors.black26), // Divider between ListTiles
 
               // Add more items if needed
             ],
@@ -179,7 +197,7 @@ Widget build(BuildContext context) {
     },
   );
 
-  return Scaffold(
+return Scaffold(
     body: Stack(
       children: [
         if (cameras != null)
@@ -194,71 +212,85 @@ Widget build(BuildContext context) {
             } else if (snapshot.hasData) {
               // Once data is fetched, update the location display along with the map
               final position = snapshot.data!;
-              return Stack(
-                children: [
-                  Positioned(
-                    top: 10,
-                    left: 10,
-                    child: ClipOval(
-                      child: Container(
-                        width: 100,  // Adjust size as needed
-                        height: 100, // Adjust size as needed
-                        child: FlutterMap(
-                          options: MapOptions(
-                            initialCenter: LatLng(position.latitude, position.longitude),
-                            initialZoom: 13.0,
-                            interactionOptions: const InteractionOptions(
+              return GestureDetector(
+                onTap: () {
+                  Navigator.of(context).push(MaterialPageRoute(
+                    builder: (context) => FullScreenMapPage(center: LatLng(position.latitude, position.longitude)),
+                  ));
+                },
+                child: ClipOval(
+                  child: Container(
+                    width: 100,  // Adjust size as needed
+                    height: 100, // Adjust size as needed
+                    child: FlutterMap(
+                      options: MapOptions(
+                        initialCenter: LatLng(position.latitude, position.longitude),
+                        initialZoom: 13.0,
+                        interactionOptions: const InteractionOptions(
                               flags: InteractiveFlag.none,
-                            )
-                          ),
-                          children: [
-                            TileLayer(
-                              urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                              subdomains: const ['a', 'b', 'c'],
-                            ),
-                            MarkerLayer( // This is the new marker layer
-                              markers: [
-                                Marker(
-                                  width: 50.0,
-                                  height: 50.0,
-                                  point: LatLng(position.latitude, position.longitude),
-                                  child: const Icon(Icons.location_on, size: 35.0, color: Colors.red,),
-                                ),
-                              ],
-                            ),
-                          ],  
-                        ),
+                        )
                       ),
+                      children: [
+                        TileLayer(
+                          urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          subdomains: const ['a', 'b', 'c'],
+                        ),
+                        MarkerLayer(
+                          markers: [
+                            Marker(
+                              width: 50.0,
+                              height: 50.0,
+                              point: LatLng(position.latitude, position.longitude),
+                              child: const Icon(Icons.location_on, size: 35.0, color: Colors.red,),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-                  Positioned(
-                    top: 10,
-                    right: 10,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: Colors.black54, // Background color
-                        borderRadius: BorderRadius.circular(10), // Rounded corners
-                      ),
-                      child: Text(
-                        'LAT: ${position.latitude}, \nLON: ${position.longitude}, \nALT: ${position.altitude}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Include other UI elements like GestureDetector for taking photos, FAB, etc., here
-                ],
+                ),
               );
             } else {
-              return const Text('No location data'); // Handle the case where no data is returned
+              return const Text('No location data');
             }
           },
         ),
-
-        // The rest of your UI elements, like GestureDetector for taking photos, FAB, etc.
+        // Correctly positioned container on the top right for location info
+        Positioned(
+          top: 10,
+          right: 10,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: Colors.black54, // Background color
+              borderRadius: BorderRadius.circular(10), // Rounded corners
+            ),
+            child: FutureBuilder<Position>(
+              future: location.getCurrentLocation(),
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  return Text(
+                    'LAT: ${snapshot.data!.latitude.toStringAsFixed(2)}, \n'
+                    'LON: ${snapshot.data!.longitude.toStringAsFixed(2)}, \n'
+                    'ALT: ${snapshot.data!.altitude.toStringAsFixed(2)} meters',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  );
+                } else {
+                  return const Text(
+                    'Fetching location...',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  );
+                }
+              },
+            ),
+          ),
+        ),
         GestureDetector(
           onTap: () {
             cameraActionController.takePhotoWithCamera!(homePageCameraController!);
@@ -287,7 +319,6 @@ Widget build(BuildContext context) {
     ),
   );
 }
-
   
 
 
