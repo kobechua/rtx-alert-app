@@ -7,6 +7,7 @@ import 'package:rtx_alert_app/pages/greeting_page/greeting_page.dart';
 import 'package:rtx_alert_app/services/location.dart';
 import 'package:camera/camera.dart';
 import 'package:rtx_alert_app/pages/camera/preview.dart';
+import 'package:rtx_alert_app/pages/settings_page.dart';
 import 'package:rtx_alert_app/services/auth.dart';
 import 'package:rtx_alert_app/pages/fullscreen_map.dart';
 import 'package:image_picker/image_picker.dart';
@@ -28,7 +29,7 @@ class _HomePageState extends State<HomePage> {
   late final CameraActionController cameraActionController = CameraActionController();
   CameraController? homePageCameraController;
   final FirebaseAuthService auth = FirebaseAuthService();
-  bool _locationInitialized = false;
+  static bool _locationInitialized = false;
 
   @override
   void initState() {
@@ -142,7 +143,7 @@ class _HomePageState extends State<HomePage> {
               ),
               const Divider(color: Colors.black26), // Divider between ListTiles
               ListTile(
-                title: const Text('Menu Item 3',
+                title: const Text('Settings',
                   style: TextStyle(
                     color: Colors.black87,
                     fontSize: 28,
@@ -152,7 +153,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 onTap: () {
                   // Handle tap
-                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => SettingsPage()));
                 },
               ),
               const Divider(color: Colors.black26), // Divider between ListTiles
@@ -291,6 +292,8 @@ return Scaffold(
             ),
           ),
         ),
+        
+        //button for camera to take a picture
         GestureDetector(
           onTap: () {
             cameraActionController.takePhotoWithCamera!(homePageCameraController!);
