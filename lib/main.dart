@@ -3,6 +3,9 @@ import 'package:rtx_alert_app/firebase_options.dart';
 
 import 'package:rtx_alert_app/pages/greeting_page/greeting_page.dart';
 
+import 'package:provider/provider.dart';
+import 'package:rtx_alert_app/pages/settings_page.dart';
+import 'package:rtx_alert_app/pages/app_settings.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 void main() async {
@@ -19,9 +22,14 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: GreetingPage()
+    return ChangeNotifierProvider(
+      create: (context) => AppSettings()..loadSettings(),
+      child: const MaterialApp(
+        home: GreetingPage(),
+      ),
     );
+    
+    
   }
 }
 

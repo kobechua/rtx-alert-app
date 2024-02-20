@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:rtx_alert_app/pages/app_settings.dart';
 import 'package:rtx_alert_app/pages/camera/camera_handler.dart';
 import 'package:rtx_alert_app/pages/greeting_page/greeting_page.dart';
 import 'package:rtx_alert_app/services/location.dart';
@@ -11,6 +12,8 @@ import 'package:rtx_alert_app/pages/settings_page.dart';
 import 'package:rtx_alert_app/services/auth.dart';
 import 'package:rtx_alert_app/pages/fullscreen_map.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 
 
@@ -43,7 +46,6 @@ class _HomePageState extends State<HomePage> {
     cameraActionController.pickExistingPhoto = pickExistingPhoto;
     cameraActionController.takePhotoWithCamera = (camController) => takePhoto(camController);
   }
-
   List<CameraDescription>? cameras;
   
   Future<void> loadCameras() async {
@@ -82,15 +84,13 @@ class _HomePageState extends State<HomePage> {
   }
 
 
-
   Future<void> initializeLocation() async {
     if (_locationInitialized) return;           //check if initialization has already occurred
 
     try {
-      await location.getCurrentLocation();
-      setState(() {
-        
-      });
+
+      final currentLocation = await location.getCurrentLocation();
+      
     }
     catch (e){
       setState(() {
@@ -184,6 +184,8 @@ class _HomePageState extends State<HomePage> {
 
 @override
 Widget build(BuildContext context) {
+  final appSettings = Provider.of<AppSettings>(context, listen: true);
+
   if (cameras == null) {
     return const Scaffold(
       body: Center(child: CircularProgressIndicator()),
@@ -270,10 +272,13 @@ return Scaffold(
               future: location.getCurrentLocation(),
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
+                  final altitude = appSettings.convertAltitude(snapshot.data!.altitude);
+                  final altitudeUnit = appSettings.useEnglishUnits ? "feet" : "meters";
+
                   return Text(
                     'LAT: ${snapshot.data!.latitude.toStringAsFixed(2)}, \n'
                     'LON: ${snapshot.data!.longitude.toStringAsFixed(2)}, \n'
-                    'ALT: ${snapshot.data!.altitude.toStringAsFixed(2)} meters',
+                    'ALT: ${altitude.toStringAsFixed(2)} $altitudeUnit',
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,

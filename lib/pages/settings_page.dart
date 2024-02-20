@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import 'app_settings.dart';
 
 class SettingsPage extends StatefulWidget {
   SettingsPage({Key? key}) : super(key: key);
@@ -34,6 +36,9 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final appSettings = Provider.of<AppSettings>(context, listen: false);
+    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -49,12 +54,19 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
         backgroundColor: Colors.black87,
       ),
+
       body: ListTile(
-        title: const Text('Enable Feature'),
+        title: const Text(
+          'Switch to English units',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+          ),),
         trailing: Switch(
-          value: _isSettingEnabled,
+          value: appSettings.useEnglishUnits,
+          activeTrackColor: Colors.black87,
+          
           onChanged: (bool value) {
-            // Update the state and persist the new value
+            appSettings.toggleUnitSystem();
             _updateSetting(value);
           },
         ),
