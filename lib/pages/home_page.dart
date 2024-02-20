@@ -5,6 +5,8 @@ import 'package:latlong2/latlong.dart';
 import 'package:rtx_alert_app/pages/app_settings.dart';
 import 'package:rtx_alert_app/pages/camera/camera_handler.dart';
 import 'package:rtx_alert_app/pages/greeting_page/greeting_page.dart';
+import 'package:rtx_alert_app/pages/leaderboards_page.dart';
+import 'package:rtx_alert_app/pages/rewards_page.dart';
 import 'package:rtx_alert_app/services/location.dart';
 import 'package:camera/camera.dart';
 import 'package:rtx_alert_app/pages/camera/preview.dart';
@@ -113,7 +115,7 @@ class _HomePageState extends State<HomePage> {
             children: [
               const SizedBox(height: 10),
               ListTile(
-                title: const Text('Menu Item 1',
+                title: const Text('Rewards',
                   style: TextStyle(
                     color: Colors.black87,
                     fontSize: 28,
@@ -123,12 +125,12 @@ class _HomePageState extends State<HomePage> {
                 ),
                 onTap: () {
                   // Handle tap
-                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => RewardsPage()));
                 },
               ),
               const Divider(color: Colors.black26), // Divider between ListTiles
               ListTile(
-                title: const Text('Menu Item 2',
+                title: const Text('Leaderboard',
                   style: TextStyle(
                     color: Colors.black87,
                     fontSize: 28,
@@ -138,7 +140,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 onTap: () {
                   // Handle tap
-                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => LeaderboardsPage()));
                 },
               ),
               const Divider(color: Colors.black26), // Divider between ListTiles
@@ -311,7 +313,7 @@ return Scaffold(
           child: FloatingActionButton(
             onPressed: () => _showBottomSheet(context),
             backgroundColor: Colors.white,
-            child: const Icon(Icons.menu),
+            child: const Icon(Icons.menu, color: Colors.black),
           ),
         ),
         Positioned(
@@ -320,7 +322,7 @@ return Scaffold(
           child: FloatingActionButton(
             onPressed: () => cameraActionController.selectExistingPhoto(),
             backgroundColor: Colors.white,
-            child: const Icon(Icons.photo_album),
+            child: const Icon(Icons.photo_album, color: Colors.black),
           ),
         ),
       ],
