@@ -1,4 +1,6 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:rtx_alert_app/pages/home_page.dart';
 import 'login.dart';
 import 'signup.dart';
 
@@ -22,14 +24,24 @@ class _GreetingPageState extends State<GreetingPage> {
   
   @override
   Widget build(BuildContext context) {
-    if (showLoginPage) {
-      return LoginPage(
-        onTap: togglePages,
-      );
-    } else {
-      return SignUpPage(
-        onTap: togglePages,
-      );
-    }
+
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.hasData){
+          return HomePage();
+        } else {
+          if (showLoginPage) {
+            return LoginPage(
+              onTap: togglePages,
+            );
+          } else {
+            return SignUpPage(
+              onTap: togglePages,
+            );
+          }
+        }
+      }
+    );
   }
 }
