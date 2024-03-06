@@ -1,0 +1,27 @@
+# This is a generated file; do not edit or check into version control.
+camera=/Users/jasonbarican/.pub-cache/hosted/pub.dev/camera-0.10.5+9/
+camera_android=/Users/jasonbarican/.pub-cache/hosted/pub.dev/camera_android-0.10.8+16/
+camera_avfoundation=/Users/jasonbarican/.pub-cache/hosted/pub.dev/camera_avfoundation-0.9.14/
+camera_web=/Users/jasonbarican/.pub-cache/hosted/pub.dev/camera_web-0.3.2+4/
+file_selector_linux=/Users/jasonbarican/.pub-cache/hosted/pub.dev/file_selector_linux-0.9.2+1/
+file_selector_macos=/Users/jasonbarican/.pub-cache/hosted/pub.dev/file_selector_macos-0.9.3+3/
+file_selector_windows=/Users/jasonbarican/.pub-cache/hosted/pub.dev/file_selector_windows-0.9.3+1/
+firebase_auth=/Users/jasonbarican/.pub-cache/hosted/pub.dev/firebase_auth-4.17.4/
+firebase_auth_web=/Users/jasonbarican/.pub-cache/hosted/pub.dev/firebase_auth_web-5.9.4/
+firebase_core=/Users/jasonbarican/.pub-cache/hosted/pub.dev/firebase_core-2.25.4/
+firebase_core_web=/Users/jasonbarican/.pub-cache/hosted/pub.dev/firebase_core_web-2.11.4/
+firebase_storage=/Users/jasonbarican/.pub-cache/hosted/pub.dev/firebase_storage-11.6.5/
+firebase_storage_web=/Users/jasonbarican/.pub-cache/hosted/pub.dev/firebase_storage_web-3.6.22/
+flutter_plugin_android_lifecycle=/Users/jasonbarican/.pub-cache/hosted/pub.dev/flutter_plugin_android_lifecycle-2.0.17/
+geolocator=/Users/jasonbarican/.pub-cache/hosted/pub.dev/geolocator-10.1.0/
+geolocator_android=/Users/jasonbarican/.pub-cache/hosted/pub.dev/geolocator_android-4.5.1/
+geolocator_apple=/Users/jasonbarican/.pub-cache/hosted/pub.dev/geolocator_apple-2.3.5/
+geolocator_web=/Users/jasonbarican/.pub-cache/hosted/pub.dev/geolocator_web-2.2.1/
+geolocator_windows=/Users/jasonbarican/.pub-cache/hosted/pub.dev/geolocator_windows-0.2.2/
+image_picker=/Users/jasonbarican/.pub-cache/hosted/pub.dev/image_picker-1.0.7/
+image_picker_android=/Users/jasonbarican/.pub-cache/hosted/pub.dev/image_picker_android-0.8.9+3/
+image_picker_for_web=/Users/jasonbarican/.pub-cache/hosted/pub.dev/image_picker_for_web-3.0.2/
+image_picker_ios=/Users/jasonbarican/.pub-cache/hosted/pub.dev/image_picker_ios-0.8.9+1/
+image_picker_linux=/Users/jasonbarican/.pub-cache/hosted/pub.dev/image_picker_linux-0.2.1+1/
+image_picker_macos=/Users/jasonbarican/.pub-cache/hosted/pub.dev/image_picker_macos-0.2.1+1/
+image_picker_windows=/Users/jasonbarican/.pub-cache/hosted/pub.dev/image_picker_windows-0.2.1+1/
