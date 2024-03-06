@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
 class LocationHandler {
@@ -6,7 +5,7 @@ class LocationHandler {
   double? longitude;
   double? altitude;
 
-  Future<void> getCurrentLocation() async {
+  Future<Position> getCurrentLocation() async {
     bool serviceEnabled;
     LocationPermission permission;
 
@@ -29,13 +28,6 @@ class LocationHandler {
           'Location permissions are permanently denied, we cannot request permissions.');
     }
 
-    try {
-      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-      latitude = position.latitude;
-      longitude = position.longitude;
-      altitude = position.altitude;
-    } catch (e) {
-      debugPrint("Some error occured");
-    }
+    return await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
   }
 }

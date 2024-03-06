@@ -1,17 +1,26 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
+import 'package:flutter_compass/flutter_compass.dart';
+import 'package:rtx_alert_app/pages/app_settings.dart';
 import 'package:rtx_alert_app/pages/camera/camera_handler.dart';
-// import 'package:rtx_alert_app/pages/greeting_page/greeting_page.dart';
+import 'package:rtx_alert_app/pages/greeting_page/greeting_page.dart';
+import 'package:rtx_alert_app/pages/leaderboards_page.dart';
+import 'package:rtx_alert_app/pages/rewards_page.dart';
+
 import 'package:rtx_alert_app/services/location.dart';
 // import 'package:rtx_alert_app/services/auth.dart';
 
 import 'package:camera/camera.dart';
 import 'package:rtx_alert_app/pages/camera/preview.dart';
-
+import 'package:rtx_alert_app/pages/settings_page.dart';
+import 'package:rtx_alert_app/services/auth.dart';
+import 'package:rtx_alert_app/pages/fullscreen_map.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 import 'dart:io';
 
 
@@ -30,13 +39,34 @@ class _HomePageState extends State<HomePage> {
   String locationError = '';
   late final CameraActionController cameraActionController = CameraActionController();
   CameraController? homePageCameraController;
-  
+  final FirebaseAuthService auth = FirebaseAuthService();
+  Future<Position>? _locationFuture;
+  static bool _locationInitialized = false;
+
+  double? _azimuth;
+  double normalizeAzimuth(double azimuth) {
+    while (azimuth < 0) {
+      azimuth += 360;
+    }
+    return azimuth;
+  }
+
 
   @override
   void initState() {
     super.initState();
     loadCameras();
-    initializeLocation();  //get current location
+    _locationFuture = location.getCurrentLocation();
+    FlutterCompass.events!.listen((CompassEvent event) { 
+      setState(() {
+        _azimuth = normalizeAzimuth(event.heading ?? 0);  //Normalize azimuth value
+      });
+    });
+
+    if (!_locationInitialized) {
+      initializeLocation();                     //get current location once per session
+    }
+      //get current location
     cameraActionController.pickExistingPhoto = pickExistingPhoto;
     cameraActionController.takePhotoWithCamera = (camController) => takePhoto(camController);
   }
@@ -79,17 +109,47 @@ class _HomePageState extends State<HomePage> {
   }
 
 
+
   Future<void> initializeLocation() async {
-    try {
-      await location.getCurrentLocation();
-      setState(() {
-        
-      });
+    if (_locationInitialized) {
+      // If location services have already been initialized, do nothing
+      return;
     }
-    catch (e){
+
+    // Check location permission
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      // If permissions are denied, request them
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        // Permissions are denied, show a message or handle accordingly
+        setState(() {
+          locationError = 'Location permissions are denied';
+        });
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      // Permissions are permanently denied, show a message or handle accordingly
+      setState(() {
+        locationError = 'Location permissions are permanently denied, we cannot request permissions.';
+      });
+      return;
+    }
+
+
+    // Permissions are granted, proceed with initializing location services
+    try {
+      setState(() {
+        // Update state with current location if necessary
+      });
+    } catch (e) {
       setState(() {
         locationError = e.toString();
       });
+    } finally {
+      _locationInitialized = true; // Mark location services as initialized
     }
   }
   
@@ -100,14 +160,14 @@ class _HomePageState extends State<HomePage> {
       builder: (BuildContext context) {
         return Container(
           height: 500, // Set height
-          color: Colors.black87, // Set background color
+          color: Colors.transparent, // Set background color
           child: Column(
             children: [
               const SizedBox(height: 10),
               ListTile(
-                title: const Text('Menu Item 1',
+                title: const Text('Rewards',
                   style: TextStyle(
-                    color: Colors.white70,
+                    color: Colors.black87,
                     fontSize: 28,
                     fontWeight: FontWeight.bold
                   ),
@@ -115,14 +175,46 @@ class _HomePageState extends State<HomePage> {
                 ),
                 onTap: () {
                   // Handle tap
-                  Navigator.pop(context);
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => RewardsPage()));
                 },
               ),
-              const Divider(color: Colors.white10), // Divider between ListTiles
+              const Divider(color: Colors.black26), // Divider between ListTiles
+              ListTile(
+
+                title: const Text('Leaderboard',
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                onTap: () {
+                  // Handle tap
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => LeaderboardsPage()));
+
+                },
+              ),
+              const Divider(color: Colors.black26), // Divider between ListTiles
+              ListTile(
+                title: const Text('Settings',
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                onTap: () {
+                  // Handle tap
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => SettingsPage()));
+                },
+              ),
+              const Divider(color: Colors.black26), // Divider between ListTiles
               ListTile(
                 title: const Text('Sign Out',
                   style: TextStyle(
-                    color: Colors.white70,
+                    color: Colors.black87,
                     fontSize: 28,
                     fontWeight: FontWeight.bold
                   ),
@@ -131,12 +223,9 @@ class _HomePageState extends State<HomePage> {
                 onTap: () {
                   Navigator.pop(context);
                   FirebaseAuth.instance.signOut();
-                  
-                  // if (!context.mounted) return;
-                  // Navigator.push(context, MaterialPageRoute(builder: (context) => const GreetingPage()));
                 },
               ),
-              const Divider(color: Colors.white10), // Divider between ListTiles
+              const Divider(color: Colors.black26), // Divider between ListTiles
 
               // Add more items if needed
             ],
@@ -146,95 +235,155 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
 
-    CameraHandler camera = CameraHandler(
-      cameras: cameras!,
-      onControllerCreated: (controller) {
-        homePageCameraController = controller;
-        cameraActionController.setCameraController(controller);
-      }, 
-    );
+@override
+Widget build(BuildContext context) {
+  final appSettings = Provider.of<AppSettings>(context, listen: true);
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          if (cameras != null)
-            camera,
-          Positioned(
-            top: 10,
-            right: 10,
-            child: location.latitude != null && location.longitude != null
-                ? Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: Colors.black54, // Background color
-                      borderRadius: BorderRadius.circular(10), // Rounded corners
-                    ),
-                    child: Text(
-                      'LAT: ${location.latitude}, \nLON: ${location.longitude}, \nALT: ${location.altitude}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  )
-                : const CircularProgressIndicator(),
-          ),
-          
-          Positioned(
-            top: 10,
-            left: 10,
-            child: ClipOval(
-              child: Container(
-                width: 100,  // Diameter of the circle
-                height: 100, // Diameter of the circle
-                child: FlutterMap(
-                  options: MapOptions(
-                    initialCenter: LatLng(location.latitude ?? 0, location.longitude ?? 0),
-                    initialZoom: 8.0,
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      subdomains: const ['a', 'b', 'c'],
-                    ),
-                  ],  
-                ),
-              ),
-            ),
-          ),
-          
-          GestureDetector(
-            onTap: () {
-              cameraActionController.takePhotoWithCamera!(homePageCameraController!);
+  if (cameras == null) {
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
 
-            },
-            child: button(Icons.camera_alt_outlined, Alignment.bottomCenter),
-          ),
-          Positioned(
-            left: 20,
-            bottom: 20,
-            child: FloatingActionButton(
-              onPressed: () => _showBottomSheet(context),
-              backgroundColor: Colors.white,
-              child:  const Icon(Icons.menu),
-            ),
-          ),
-          Positioned(
-            right: 20,
-            bottom: 20,
-            child: FloatingActionButton(
-              onPressed: () => cameraActionController.selectExistingPhoto(),
-              backgroundColor: Colors.white,
-              child:  const Icon(Icons.photo_album),
-            ),
-          ),
-        ],
-      ),
     );
   }
+
+  CameraHandler camera = CameraHandler(
+    cameras: cameras!,
+    onControllerCreated: (controller) {
+      homePageCameraController = controller;
+      cameraActionController.setCameraController(controller);
+    },
+  );
+
+return Scaffold(
+    body: Stack(
+      children: [
+        if (cameras != null)
+          camera,
+        FutureBuilder<Position>(
+          future: _locationFuture, // Fetch the current location
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const CircularProgressIndicator(); // Show loading indicator
+            } else if (snapshot.hasError) {
+              return Text('Error: ${snapshot.error}'); // Show error message
+            } else if (snapshot.hasData) {
+              // Once data is fetched, update the location display along with the map
+              final position = snapshot.data!;
+              return GestureDetector(
+                onTap: () {
+                  Navigator.of(context).push(MaterialPageRoute(
+                    builder: (context) => FullScreenMapPage(center: LatLng(position.latitude, position.longitude)),
+                  ));
+                },
+                child: ClipOval(
+                  child: Container(
+                    width: 100,  // Adjust size as needed
+                    height: 100, // Adjust size as needed
+                    child: FlutterMap(
+                      options: MapOptions(
+                        initialCenter: LatLng(position.latitude, position.longitude),
+                        initialZoom: 13.0,
+                        interactionOptions: const InteractionOptions(
+                              flags: InteractiveFlag.none,
+                        )
+                      ),
+                      children: [
+                        TileLayer(
+                          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          subdomains: const ['a', 'b', 'c'],
+                        ),
+                        MarkerLayer(
+                          markers: [
+                            Marker(
+                              width: 50.0,
+                              height: 50.0,
+                              point: LatLng(position.latitude, position.longitude),
+                              child: const Icon(Icons.location_on, size: 35.0, color: Colors.red,),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            } else {
+              return const Text('No location data');
+            }
+          },
+        ),
+        // Correctly positioned container on the top right for location info
+        Positioned(
+          top: 10,
+          right: 10,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: Colors.black54, // Background color
+              borderRadius: BorderRadius.circular(10), // Rounded corners
+            ),
+            child: FutureBuilder<Position>(
+              future: _locationFuture,
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  final altitude = appSettings.convertAltitude(snapshot.data!.altitude);
+                  final altitudeUnit = appSettings.useEnglishUnits ? "feet" : "meters";
+
+                  return Text(
+                    'LAT: ${snapshot.data!.latitude.toStringAsFixed(2)}°, \n'
+                    'LON: ${snapshot.data!.longitude.toStringAsFixed(2)}°, \n'
+                    'Azimuth: ${_azimuth?.toStringAsFixed(3)}°, \n'
+                    'ALT: ${altitude.toStringAsFixed(2)} $altitudeUnit',
+                    
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  );
+                } else {
+                  return const Text(
+                    'Fetching location...',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  );
+                }
+              },
+            ),
+          ),
+        ),
+        
+        //button for camera to take a picture
+        GestureDetector(
+          onTap: () {
+            cameraActionController.takePhotoWithCamera!(homePageCameraController!);
+          },
+          child: button(Icons.camera_alt_outlined, Alignment.bottomCenter),
+        ),
+        Positioned(
+          left: 20,
+          bottom: 20,
+          child: FloatingActionButton(
+            onPressed: () => _showBottomSheet(context),
+            backgroundColor: Colors.white,
+            child: const Icon(Icons.menu, color: Colors.black),
+          ),
+        ),
+        Positioned(
+          right: 20,
+          bottom: 20,
+          child: FloatingActionButton(
+            onPressed: () => cameraActionController.selectExistingPhoto(),
+            backgroundColor: Colors.white,
+            child: const Icon(Icons.photo_album, color: Colors.black),
+          ),
+        ),
+      ],
+    ),
+  );
+}
   
 
 
@@ -251,7 +400,7 @@ class _HomePageState extends State<HomePage> {
         decoration: const BoxDecoration(
           shape: BoxShape.circle,
           color: Colors.white,
-          boxShadow: [
+          boxShadow: [ 
             BoxShadow(
               color: Colors.black26,
               offset: Offset(2, 2),
