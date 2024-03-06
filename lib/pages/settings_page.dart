@@ -11,6 +11,7 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  // ignore: unused_field
   bool _isSettingEnabled = false;
 
   @override

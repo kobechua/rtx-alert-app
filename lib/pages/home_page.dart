@@ -16,7 +16,6 @@ import 'package:rtx_alert_app/services/auth.dart';
 import 'package:rtx_alert_app/pages/fullscreen_map.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 
 
@@ -133,7 +132,6 @@ class _HomePageState extends State<HomePage> {
 
     // Permissions are granted, proceed with initializing location services
     try {
-      final currentLocation = await location.getCurrentLocation();
       setState(() {
         // Update state with current location if necessary
       });
