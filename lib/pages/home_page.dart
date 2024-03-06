@@ -1,11 +1,12 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import 'package:rtx_alert_app/pages/camera/camera_handler.dart';
-import 'package:rtx_alert_app/pages/greeting_page/greeting_page.dart';
+// import 'package:rtx_alert_app/pages/greeting_page/greeting_page.dart';
 import 'package:rtx_alert_app/services/location.dart';
-import 'package:rtx_alert_app/services/auth.dart';
+// import 'package:rtx_alert_app/services/auth.dart';
 
 import 'package:camera/camera.dart';
 import 'package:rtx_alert_app/pages/camera/preview.dart';
@@ -15,7 +16,9 @@ import 'dart:io';
 
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  HomePage({super.key});
+
+  final auth = FirebaseAuth.instance.currentUser!;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -27,7 +30,7 @@ class _HomePageState extends State<HomePage> {
   String locationError = '';
   late final CameraActionController cameraActionController = CameraActionController();
   CameraController? homePageCameraController;
-  final FirebaseAuthService auth = FirebaseAuthService();
+  
 
   @override
   void initState() {
@@ -126,9 +129,11 @@ class _HomePageState extends State<HomePage> {
                   textAlign: TextAlign.center,
                 ),
                 onTap: () {
-                  auth.signOut();
-                  if (!context.mounted) return;
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const GreetingPage()));
+                  Navigator.pop(context);
+                  FirebaseAuth.instance.signOut();
+                  
+                  // if (!context.mounted) return;
+                  // Navigator.push(context, MaterialPageRoute(builder: (context) => const GreetingPage()));
                 },
               ),
               const Divider(color: Colors.white10), // Divider between ListTiles
