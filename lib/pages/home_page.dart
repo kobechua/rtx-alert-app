@@ -14,6 +14,8 @@ import 'package:rtx_alert_app/pages/camera/preview.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
+import 'package:rtx_alert_app/services/session_listener.dart';
+
 
 class HomePage extends StatefulWidget {
   HomePage({super.key});
@@ -157,81 +159,91 @@ class _HomePageState extends State<HomePage> {
       }, 
     );
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          if (cameras != null)
-            camera,
-          Positioned(
-            top: 10,
-            right: 10,
-            child: location.latitude != null && location.longitude != null
-                ? Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: Colors.black54, // Background color
-                      borderRadius: BorderRadius.circular(10), // Rounded corners
-                    ),
-                    child: Text(
-                      'LAT: ${location.latitude}, \nLON: ${location.longitude}, \nALT: ${location.altitude}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
+    return SessionTimeOutListener(
+      duration: const Duration(minutes: 10),
+      onTimeOut: (){
+        FirebaseAuth.instance.signOut();
+      },
+      onWarning: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Inactivity Alert: You will be logged out in 1 minute")));
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            if (cameras != null)
+              camera,
+            Positioned(
+              top: 10,
+              right: 10,
+              child: location.latitude != null && location.longitude != null
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.black54, // Background color
+                        borderRadius: BorderRadius.circular(10), // Rounded corners
                       ),
+                      child: Text(
+                        'LAT: ${location.latitude}, \nLON: ${location.longitude}, \nALT: ${location.altitude}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    )
+                  : const CircularProgressIndicator(),
+            ),
+            
+            Positioned(
+              top: 10,
+              left: 10,
+              child: ClipOval(
+                child: Container(
+                  width: 100,  // Diameter of the circle
+                  height: 100, // Diameter of the circle
+                  child: FlutterMap(
+                    options: MapOptions(
+                      initialCenter: LatLng(location.latitude ?? 0, location.longitude ?? 0),
+                      initialZoom: 8.0,
                     ),
-                  )
-                : const CircularProgressIndicator(),
-          ),
-          
-          Positioned(
-            top: 10,
-            left: 10,
-            child: ClipOval(
-              child: Container(
-                width: 100,  // Diameter of the circle
-                height: 100, // Diameter of the circle
-                child: FlutterMap(
-                  options: MapOptions(
-                    initialCenter: LatLng(location.latitude ?? 0, location.longitude ?? 0),
-                    initialZoom: 8.0,
+                    children: [
+                      TileLayer(
+                        urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        subdomains: const ['a', 'b', 'c'],
+                      ),
+                    ],  
                   ),
-                  children: [
-                    TileLayer(
-                      urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      subdomains: const ['a', 'b', 'c'],
-                    ),
-                  ],  
                 ),
               ),
             ),
-          ),
-          
-          GestureDetector(
-            onTap: () {
-              cameraActionController.takePhotoWithCamera!(homePageCameraController!);
-
-            },
-            child: button(Icons.camera_alt_outlined, Alignment.bottomCenter),
-          ),
-          Positioned(
-            left: 20,
-            bottom: 20,
-            child: FloatingActionButton(
-              onPressed: () => _showBottomSheet(context),
-              backgroundColor: Colors.white,
-              child:  const Icon(Icons.menu),
+            
+            GestureDetector(
+              onTap: () {
+                cameraActionController.takePhotoWithCamera!(homePageCameraController!);
+      
+              },
+              child: button(Icons.camera_alt_outlined, Alignment.bottomCenter),
             ),
-          ),
-          Positioned(
-            right: 20,
-            bottom: 20,
-            child: FloatingActionButton(
-              onPressed: () => cameraActionController.selectExistingPhoto(),
-              backgroundColor: Colors.white,
-              child:  const Icon(Icons.photo_album),
+            Positioned(
+              left: 20,
+              bottom: 20,
+              child: FloatingActionButton(
+                onPressed: () => _showBottomSheet(context),
+                backgroundColor: Colors.white,
+                child:  const Icon(Icons.menu),
+              ),
             ),
-          ),
-        ],
+            Positioned(
+              right: 20,
+              bottom: 20,
+              child: FloatingActionButton(
+                onPressed: () => cameraActionController.selectExistingPhoto(),
+                backgroundColor: Colors.white,
+                child:  const Icon(Icons.photo_album),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
