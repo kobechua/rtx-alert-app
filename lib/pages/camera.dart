@@ -21,7 +21,7 @@ class _CameraPageState extends State<CameraPage> {
           children: [
             const Text("Camera Page"),
             GestureDetector(
-              onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomePage())),
+              onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => HomePage())),
               child: const Text("Home Page"),
             ),
           ],

@@ -1,14 +1,19 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+
 import 'package:flutter_compass/flutter_compass.dart';
 import 'package:rtx_alert_app/pages/app_settings.dart';
 import 'package:rtx_alert_app/pages/camera/camera_handler.dart';
 import 'package:rtx_alert_app/pages/greeting_page/greeting_page.dart';
 import 'package:rtx_alert_app/pages/leaderboards_page.dart';
 import 'package:rtx_alert_app/pages/rewards_page.dart';
+
 import 'package:rtx_alert_app/services/location.dart';
+// import 'package:rtx_alert_app/services/auth.dart';
+
 import 'package:camera/camera.dart';
 import 'package:rtx_alert_app/pages/camera/preview.dart';
 import 'package:rtx_alert_app/pages/settings_page.dart';
@@ -20,14 +25,15 @@ import 'dart:io';
 
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  HomePage({super.key});
+
+  final auth = FirebaseAuth.instance.currentUser!;
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  
   File? selectedImage;
   LocationHandler location = LocationHandler();
   String locationError = '';
@@ -44,6 +50,7 @@ class _HomePageState extends State<HomePage> {
     }
     return azimuth;
   }
+
 
   @override
   void initState() {
@@ -102,6 +109,7 @@ class _HomePageState extends State<HomePage> {
   }
 
 
+
   Future<void> initializeLocation() async {
     if (_locationInitialized) {
       // If location services have already been initialized, do nothing
@@ -129,6 +137,7 @@ class _HomePageState extends State<HomePage> {
       });
       return;
     }
+
 
     // Permissions are granted, proceed with initializing location services
     try {
@@ -171,6 +180,7 @@ class _HomePageState extends State<HomePage> {
               ),
               const Divider(color: Colors.black26), // Divider between ListTiles
               ListTile(
+
                 title: const Text('Leaderboard',
                   style: TextStyle(
                     color: Colors.black87,
@@ -182,6 +192,7 @@ class _HomePageState extends State<HomePage> {
                 onTap: () {
                   // Handle tap
                   Navigator.push(context, MaterialPageRoute(builder: (context) => LeaderboardsPage()));
+
                 },
               ),
               const Divider(color: Colors.black26), // Divider between ListTiles
@@ -210,9 +221,8 @@ class _HomePageState extends State<HomePage> {
                   textAlign: TextAlign.center,
                 ),
                 onTap: () {
-                  auth.signOut();
-                  if (!context.mounted) return;
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const GreetingPage()));
+                  Navigator.pop(context);
+                  FirebaseAuth.instance.signOut();
                 },
               ),
               const Divider(color: Colors.black26), // Divider between ListTiles
@@ -225,6 +235,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+
 @override
 Widget build(BuildContext context) {
   final appSettings = Provider.of<AppSettings>(context, listen: true);
@@ -232,6 +243,7 @@ Widget build(BuildContext context) {
   if (cameras == null) {
     return const Scaffold(
       body: Center(child: CircularProgressIndicator()),
+
     );
   }
 

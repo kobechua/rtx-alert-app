@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:rtx_alert_app/components/my_button.dart';
-import 'package:rtx_alert_app/pages/home_page.dart';
+// import 'package:rtx_alert_app/pages/home_page.dart';
 import 'package:rtx_alert_app/services/auth.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 // import 'package:firebase_core/firebase_core.dart';
@@ -53,7 +53,7 @@ class _SignUpPageState extends State<SignUpPage> {
         if (user != null){
           ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Success.")));
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const HomePage()));
+          // Navigator.push(context, MaterialPageRoute(builder: (context) => HomePage()));
         }
       }
     }
