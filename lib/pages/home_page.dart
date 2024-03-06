@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'dart:async';
 
 import 'package:flutter_compass/flutter_compass.dart';
 import 'package:rtx_alert_app/pages/app_settings.dart';
 import 'package:rtx_alert_app/pages/camera/camera_handler.dart';
-import 'package:rtx_alert_app/pages/greeting_page/greeting_page.dart';
 import 'package:rtx_alert_app/pages/leaderboards_page.dart';
 import 'package:rtx_alert_app/pages/rewards_page.dart';
 
@@ -17,7 +17,6 @@ import 'package:rtx_alert_app/services/location.dart';
 import 'package:camera/camera.dart';
 import 'package:rtx_alert_app/pages/camera/preview.dart';
 import 'package:rtx_alert_app/pages/settings_page.dart';
-import 'package:rtx_alert_app/services/auth.dart';
 import 'package:rtx_alert_app/pages/fullscreen_map.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -39,7 +38,8 @@ class _HomePageState extends State<HomePage> {
   String locationError = '';
   late final CameraActionController cameraActionController = CameraActionController();
   CameraController? homePageCameraController;
-  final FirebaseAuthService auth = FirebaseAuthService();
+  StreamSubscription<CompassEvent>? compassListener;
+  // final FirebaseAuthService auth = FirebaseAuthService();
   Future<Position>? _locationFuture;
   static bool _locationInitialized = false;
 
@@ -57,7 +57,7 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     loadCameras();
     _locationFuture = location.getCurrentLocation();
-    FlutterCompass.events!.listen((CompassEvent event) { 
+    compassListener = FlutterCompass.events!.listen((CompassEvent event) { 
       setState(() {
         _azimuth = normalizeAzimuth(event.heading ?? 0);  //Normalize azimuth value
       });
@@ -69,6 +69,12 @@ class _HomePageState extends State<HomePage> {
       //get current location
     cameraActionController.pickExistingPhoto = pickExistingPhoto;
     cameraActionController.takePhotoWithCamera = (camController) => takePhoto(camController);
+  }
+
+  @override
+  void dispose() {
+    compassListener?.cancel();
+    super.dispose();
   }
 
   List<CameraDescription>? cameras;
