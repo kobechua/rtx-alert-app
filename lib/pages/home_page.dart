@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:flutter_compass/flutter_compass.dart';
 import 'package:rtx_alert_app/pages/app_settings.dart';
 import 'package:rtx_alert_app/pages/camera/camera_handler.dart';
 import 'package:rtx_alert_app/pages/greeting_page/greeting_page.dart';
@@ -34,12 +35,27 @@ class _HomePageState extends State<HomePage> {
   late final CameraActionController cameraActionController = CameraActionController();
   CameraController? homePageCameraController;
   final FirebaseAuthService auth = FirebaseAuthService();
+  Future<Position>? _locationFuture;
   static bool _locationInitialized = false;
+
+  double? _azimuth;
+  double normalizeAzimuth(double azimuth) {
+    while (azimuth < 0) {
+      azimuth += 360;
+    }
+    return azimuth;
+  }
 
   @override
   void initState() {
     super.initState();
     loadCameras();
+    _locationFuture = location.getCurrentLocation();
+    FlutterCompass.events!.listen((CompassEvent event) { 
+      setState(() {
+        _azimuth = normalizeAzimuth(event.heading ?? 0);  //Normalize azimuth value
+      });
+    });
 
     if (!_locationInitialized) {
       initializeLocation();                     //get current location once per session
@@ -48,6 +64,7 @@ class _HomePageState extends State<HomePage> {
     cameraActionController.pickExistingPhoto = pickExistingPhoto;
     cameraActionController.takePhotoWithCamera = (camController) => takePhoto(camController);
   }
+
   List<CameraDescription>? cameras;
   
   Future<void> loadCameras() async {
@@ -87,19 +104,45 @@ class _HomePageState extends State<HomePage> {
 
 
   Future<void> initializeLocation() async {
-    if (_locationInitialized) return;           //check if initialization has already occurred
-
-    try {
-
-      final currentLocation = await location.getCurrentLocation();
-      
+    if (_locationInitialized) {
+      // If location services have already been initialized, do nothing
+      return;
     }
-    catch (e){
+
+    // Check location permission
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      // If permissions are denied, request them
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        // Permissions are denied, show a message or handle accordingly
+        setState(() {
+          locationError = 'Location permissions are denied';
+        });
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      // Permissions are permanently denied, show a message or handle accordingly
+      setState(() {
+        locationError = 'Location permissions are permanently denied, we cannot request permissions.';
+      });
+      return;
+    }
+
+    // Permissions are granted, proceed with initializing location services
+    try {
+      final currentLocation = await location.getCurrentLocation();
+      setState(() {
+        // Update state with current location if necessary
+      });
+    } catch (e) {
       setState(() {
         locationError = e.toString();
       });
     } finally {
-      _locationInitialized = true;              //Mark as initalized regardless of outcome
+      _locationInitialized = true; // Mark location services as initialized
     }
   }
   
@@ -208,7 +251,7 @@ return Scaffold(
         if (cameras != null)
           camera,
         FutureBuilder<Position>(
-          future: location.getCurrentLocation(), // Fetch the current location
+          future: _locationFuture, // Fetch the current location
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const CircularProgressIndicator(); // Show loading indicator
@@ -271,16 +314,18 @@ return Scaffold(
               borderRadius: BorderRadius.circular(10), // Rounded corners
             ),
             child: FutureBuilder<Position>(
-              future: location.getCurrentLocation(),
+              future: _locationFuture,
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
                   final altitude = appSettings.convertAltitude(snapshot.data!.altitude);
                   final altitudeUnit = appSettings.useEnglishUnits ? "feet" : "meters";
 
                   return Text(
-                    'LAT: ${snapshot.data!.latitude.toStringAsFixed(2)}, \n'
-                    'LON: ${snapshot.data!.longitude.toStringAsFixed(2)}, \n'
+                    'LAT: ${snapshot.data!.latitude.toStringAsFixed(2)}°, \n'
+                    'LON: ${snapshot.data!.longitude.toStringAsFixed(2)}°, \n'
+                    'Azimuth: ${_azimuth?.toStringAsFixed(3)}°, \n'
                     'ALT: ${altitude.toStringAsFixed(2)} $altitudeUnit',
+                    
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
