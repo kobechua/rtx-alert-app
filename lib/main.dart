@@ -7,7 +7,6 @@ import 'package:rtx_alert_app/pages/greeting_page/greeting_page.dart';
 import 'package:provider/provider.dart';
 import 'package:rtx_alert_app/pages/app_settings.dart';
 import 'package:firebase_core/firebase_core.dart';
-// import 'package:rtx_alert_app/pages/home_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,6 +28,7 @@ class MyApp extends StatelessWidget {
         home: GreetingPage(),
       ),
     );
+
   }
 }
 

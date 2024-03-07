@@ -22,6 +22,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
 
+import 'package:rtx_alert_app/services/session_listener.dart';
+
 
 class HomePage extends StatefulWidget {
   HomePage({super.key});
@@ -252,16 +254,23 @@ Widget build(BuildContext context) {
 
     );
   }
-
   CameraHandler camera = CameraHandler(
-    cameras: cameras!,
-    onControllerCreated: (controller) {
-      homePageCameraController = controller;
-      cameraActionController.setCameraController(controller);
-    },
-  );
-
-return Scaffold(
+  cameras: cameras!,
+  onControllerCreated: (controller) {
+    homePageCameraController = controller;
+    cameraActionController.setCameraController(controller);
+  },
+);
+    return SessionTimeOutListener(
+      duration: const Duration(minutes: 10),
+      onTimeOut: (){
+        FirebaseAuth.instance.signOut();
+      },
+      onWarning: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Inactivity Alert: You will be logged out in 1 minute")));
+      },
+      child: Scaffold(
     body: Stack(
       children: [
         if (cameras != null)
@@ -311,6 +320,7 @@ return Scaffold(
                         ),
                       ],
                     ),
+
                   ),
                 ),
               );
@@ -329,6 +339,7 @@ return Scaffold(
               color: Colors.black54, // Background color
               borderRadius: BorderRadius.circular(10), // Rounded corners
             ),
+
             child: FutureBuilder<Position>(
               future: _locationFuture,
               builder: (context, snapshot) {
@@ -388,6 +399,7 @@ return Scaffold(
         ),
       ],
     ),
+  )
   );
 }
   
