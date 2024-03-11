@@ -12,7 +12,6 @@ import 'package:rtx_alert_app/pages/leaderboards_page.dart';
 import 'package:rtx_alert_app/pages/rewards_page.dart';
 
 import 'package:rtx_alert_app/services/location.dart';
-// import 'package:rtx_alert_app/services/auth.dart';
 
 import 'package:camera/camera.dart';
 import 'package:rtx_alert_app/pages/camera/preview.dart';
@@ -41,7 +40,6 @@ class _HomePageState extends State<HomePage> {
   late final CameraActionController cameraActionController = CameraActionController();
   CameraController? homePageCameraController;
   StreamSubscription<CompassEvent>? compassListener;
-  // final FirebaseAuthService auth = FirebaseAuthService();
   Future<Position>? _locationFuture;
   static bool _locationInitialized = false;
 
