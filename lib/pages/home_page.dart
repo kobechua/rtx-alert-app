@@ -1,15 +1,21 @@
+// import 'package:cloud_firestore/cloud_firestore.dart'; 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
+// import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'dart:async';
+// import 'package:crypto/crypto.dart';
+// import 'dart:convert'; 
 
 import 'package:flutter_compass/flutter_compass.dart';
 import 'package:rtx_alert_app/pages/app_settings.dart';
 import 'package:rtx_alert_app/pages/camera/camera_handler.dart';
 import 'package:rtx_alert_app/pages/leaderboards_page.dart';
 import 'package:rtx_alert_app/pages/rewards_page.dart';
+import 'package:rtx_alert_app/services/auth.dart';
 
 import 'package:rtx_alert_app/services/location.dart';
 
@@ -25,23 +31,32 @@ import 'package:rtx_alert_app/services/session_listener.dart';
 
 
 class HomePage extends StatefulWidget {
-  HomePage({super.key});
-
-  final auth = FirebaseAuth.instance.currentUser!;
+  const HomePage({super.key});
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
+
+  FirebaseAuthService auth =  FirebaseAuthService();
+  FirebaseDatabase database = FirebaseDatabase.instance;
+  StreamSubscription<DatabaseEvent>? sessionSubscription;
+  User? user;
+
   File? selectedImage;
+
   LocationHandler location = LocationHandler();
   String locationError = '';
-  late final CameraActionController cameraActionController = CameraActionController();
-  CameraController? homePageCameraController;
-  StreamSubscription<CompassEvent>? compassListener;
   Future<Position>? _locationFuture;
   static bool _locationInitialized = false;
+
+  late final CameraActionController cameraActionController = CameraActionController();
+  CameraController? homePageCameraController;
+
+  StreamSubscription<CompassEvent>? compassListener;
+
+  
 
   double? _azimuth;
   double normalizeAzimuth(double azimuth) {
@@ -51,12 +66,14 @@ class _HomePageState extends State<HomePage> {
     return azimuth;
   }
 
-
   @override
   void initState() {
     super.initState();
     loadCameras();
+    user = auth.auth.currentUser;
+
     _locationFuture = location.getCurrentLocation();
+
     compassListener = FlutterCompass.events!.listen((CompassEvent event) { 
       setState(() {
         _azimuth = normalizeAzimuth(event.heading ?? 0);  //Normalize azimuth value
@@ -74,6 +91,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     compassListener?.cancel();
+    sessionSubscription?.cancel();
     super.dispose();
   }
 
@@ -228,7 +246,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 onTap: () {
                   Navigator.pop(context);
-                  FirebaseAuth.instance.signOut();
+                  auth.signOut();
                 },
               ),
               const Divider(color: Colors.black26), // Divider between ListTiles
@@ -252,17 +270,38 @@ Widget build(BuildContext context) {
 
     );
   }
+
   CameraHandler camera = CameraHandler(
   cameras: cameras!,
   onControllerCreated: (controller) {
     homePageCameraController = controller;
     cameraActionController.setCameraController(controller);
-  },
-);
+    },
+  );
+
+  if (user != null){
+    sessionSubscription = database.ref().child('Sessions/${user!.uid}').onValue.listen((event) {
+    DataSnapshot snapshot = event.snapshot;
+    debugPrint('here');
+    if (snapshot.value is Map){
+      Map<dynamic, dynamic> valueMap = snapshot.value as Map<dynamic, dynamic>;
+      String storedSessionID = valueMap['sessionID'];
+      debugPrint('storedSessionID: $storedSessionID');
+      debugPrint('convertedSessionID: ${auth.convertedSessionID.toString()}');
+      debugPrint('');
+      if (storedSessionID != auth.convertedSessionID.toString()){
+        auth.signOut();
+        debugPrint("Sign out here");
+      }
+    }
+    
+  });
+}
+
     return SessionTimeOutListener(
       duration: const Duration(minutes: 10),
       onTimeOut: (){
-        FirebaseAuth.instance.signOut();
+        auth.signOut();
       },
       onWarning: () {
         ScaffoldMessenger.of(context).showSnackBar(
