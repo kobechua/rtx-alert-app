@@ -13,7 +13,6 @@ import 'package:camera/camera.dart';
 import 'package:rtx_alert_app/pages/camera/preview.dart';
 import 'package:rtx_alert_app/pages/settings_page.dart';
 import 'package:rtx_alert_app/services/auth.dart';
-import 'package:rtx_alert_app/pages/fullscreen_map.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
@@ -36,6 +35,7 @@ class _HomePageState extends State<HomePage> {
   final FirebaseAuthService auth = FirebaseAuthService();
   Future<Position>? _locationFuture;
   static bool _locationInitialized = false;
+  bool _isMapFullScreen = false;
 
   double? _azimuth;
   double normalizeAzimuth(double azimuth) {
@@ -225,6 +225,8 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+
+
 @override
 Widget build(BuildContext context) {
   final appSettings = Provider.of<AppSettings>(context, listen: true);
@@ -248,60 +250,8 @@ return Scaffold(
       children: [
         if (cameras != null)
           camera,
-        FutureBuilder<Position>(
-          future: _locationFuture, // Fetch the current location
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const CircularProgressIndicator(); // Show loading indicator
-            } else if (snapshot.hasError) {
-              return Text('Error: ${snapshot.error}'); // Show error message
-            } else if (snapshot.hasData) {
-              // Once data is fetched, update the location display along with the map
-              final position = snapshot.data!;
-              return GestureDetector(
-                onTap: () {
-                  Navigator.of(context).push(MaterialPageRoute(
-                    builder: (context) => FullScreenMapPage(center: LatLng(position.latitude, position.longitude)),
-                  ));
-                },
-                child: ClipOval(
-                  child: Container(
-                    width: 100,  // Adjust size as needed
-                    height: 100, // Adjust size as needed
-                    child: FlutterMap(
-                      options: MapOptions(
-                        initialCenter: LatLng(position.latitude, position.longitude),
-                        initialZoom: 13.0,
-                        interactionOptions: const InteractionOptions(
-                              flags: InteractiveFlag.none,
-                        )
-                      ),
-                      children: [
-                        TileLayer(
-                          urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                          subdomains: const ['a', 'b', 'c'],
-                        ),
-                        MarkerLayer(
-                          markers: [
-                            Marker(
-                              width: 50.0,
-                              height: 50.0,
-                              point: LatLng(position.latitude, position.longitude),
-                              child: const Icon(Icons.location_on, size: 35.0, color: Colors.red,),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            } else {
-              return const Text('No location data');
-            }
-          },
-        ),
-        // Correctly positioned container on the top right for location info
+
+/// WIDGETS FOR THE LOCATION DATA ON THE TOP RIGHT OF THE SCREEN
         Positioned(
           top: 10,
           right: 10,
@@ -342,8 +292,87 @@ return Scaffold(
             ),
           ),
         ),
+
+/// WIDGETS FOR THE MINI-MAP ON THE TOP LEFT OF THE SCREEN
+        FutureBuilder<Position>(
+          future: _locationFuture, // Fetch the current location
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const CircularProgressIndicator(); // Show loading indicator
+            } else if (snapshot.hasError) {
+              return Text('Error: ${snapshot.error}'); // Show error message
+            } else if (snapshot.hasData) {
+              // Once data is fetched, update the location display along with the map
+
+              final position = snapshot.data!;
+              final center = LatLng(position.latitude, position.longitude);
+
+             
+                
+                return Stack(
+                  children: [ 
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      width: _isMapFullScreen ? MediaQuery.of(context).size.width : 100,
+                      height: _isMapFullScreen ? MediaQuery.of(context).size.width : 100,
+                      child: ClipOval(
+                        child: Stack(
+                          children: [
+                            FlutterMap(
+                              options: MapOptions(
+                                initialCenter: center,
+                                initialZoom: _isMapFullScreen ? 5.0 : 13.0,
+                                interactionOptions: const InteractionOptions(
+                                  flags: InteractiveFlag.none,
+                                ),
+                              ),
+                              children: [
+                                TileLayer(
+                                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                  subdomains: const ['a', 'b', 'c'],
+                                ),
+                                MarkerLayer(
+                                  markers: [
+                                    Marker(
+                                      width: 50.0,
+                                      height: 50.0,
+                                      point: center,
+                                      child: const Icon(Icons.location_on, size: 35.0, color: Colors.red,),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            ClipOval(
+                              child: Material(
+                                color: Colors.transparent, // Keep the overlay transparent
+                                child: InkWell(
+                                  onTap: () {
+                                    setState(() {
+                                      _isMapFullScreen = !_isMapFullScreen;
+                                    });
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    
+                  ],
+                );
+                
+              
+            } else {
+              return const Text('No location data');
+            }
+          },
+        ),
+        // Correctly positioned container on the top right for location info
         
-        //button for camera to take a picture
+        
+/// WIDGETS FOR THE BUTTONS ON THE BOTTOM OF THE SCREEN
         GestureDetector(
           onTap: () {
             cameraActionController.takePhotoWithCamera!(homePageCameraController!);
