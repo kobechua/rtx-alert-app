@@ -7,8 +7,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'dart:async';
-// import 'package:crypto/crypto.dart';
-// import 'dart:convert'; 
+import 'package:crypto/crypto.dart';
+import 'dart:convert'; 
 
 import 'package:flutter_compass/flutter_compass.dart';
 import 'package:rtx_alert_app/pages/app_settings.dart';
@@ -42,6 +42,7 @@ class _HomePageState extends State<HomePage> {
   FirebaseAuthService auth =  FirebaseAuthService();
   FirebaseDatabase database = FirebaseDatabase.instance;
   StreamSubscription<DatabaseEvent>? sessionSubscription;
+  late Digest convertedSessionID;
   User? user;
 
   File? selectedImage;
@@ -71,7 +72,7 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     loadCameras();
     user = auth.auth.currentUser;
-
+    createToken();
     _locationFuture = location.getCurrentLocation();
 
     compassListener = FlutterCompass.events!.listen((CompassEvent event) { 
@@ -94,6 +95,17 @@ class _HomePageState extends State<HomePage> {
     sessionSubscription?.cancel();
     super.dispose();
   }
+
+  Future<void> createToken() async {
+    debugPrint("Token created");
+    DateTime now = DateTime.now();
+    String sessionID =  auth.user!.uid + now.month.toString() + now.day.toString() + now.year.toString() + now.hour.toString() + now.minute.toString() + now.second.toString();
+    var encodedSessionID = utf8.encode(sessionID);
+    convertedSessionID = sha256.convert(encodedSessionID);
+    await database.ref().child('Sessions/${auth.user!.uid}').set({'sessionID' : convertedSessionID.toString()});
+  }
+
+  
 
   List<CameraDescription>? cameras;
   
@@ -282,14 +294,13 @@ Widget build(BuildContext context) {
   if (user != null){
     sessionSubscription = database.ref().child('Sessions/${user!.uid}').onValue.listen((event) {
     DataSnapshot snapshot = event.snapshot;
-    debugPrint('here');
     if (snapshot.value is Map){
       Map<dynamic, dynamic> valueMap = snapshot.value as Map<dynamic, dynamic>;
       String storedSessionID = valueMap['sessionID'];
       debugPrint('storedSessionID: $storedSessionID');
-      debugPrint('convertedSessionID: ${auth.convertedSessionID.toString()}');
+      debugPrint('convertedSessionID: ${convertedSessionID.toString()}');
       debugPrint('');
-      if (storedSessionID != auth.convertedSessionID.toString()){
+      if (storedSessionID != convertedSessionID.toString()){
         auth.signOut();
         debugPrint("Sign out here");
       }
