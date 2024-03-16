@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'dart:async';
 
 import 'package:flutter_compass/flutter_compass.dart';
 import 'package:rtx_alert_app/pages/app_settings.dart';
@@ -21,6 +22,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
 
+import 'package:rtx_alert_app/services/session_listener.dart';
+
 
 class HomePage extends StatefulWidget {
   HomePage({super.key});
@@ -37,7 +40,8 @@ class _HomePageState extends State<HomePage> {
   String locationError = '';
   late final CameraActionController cameraActionController = CameraActionController();
   CameraController? homePageCameraController;
-  final FirebaseAuthService auth = FirebaseAuthService();
+  StreamSubscription<CompassEvent>? compassListener;
+  // final FirebaseAuthService auth = FirebaseAuthService();
   Future<Position>? _locationFuture;
   static bool _locationInitialized = false;
   bool _isMapFullScreen = false;
@@ -56,7 +60,7 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     loadCameras();
     _locationFuture = location.getCurrentLocation();
-    FlutterCompass.events!.listen((CompassEvent event) { 
+    compassListener = FlutterCompass.events!.listen((CompassEvent event) { 
       setState(() {
         _azimuth = normalizeAzimuth(event.heading ?? 0);  //Normalize azimuth value
       });
@@ -68,6 +72,12 @@ class _HomePageState extends State<HomePage> {
       //get current location
     cameraActionController.pickExistingPhoto = pickExistingPhoto;
     cameraActionController.takePhotoWithCamera = (camController) => takePhoto(camController);
+  }
+
+  @override
+  void dispose() {
+    compassListener?.cancel();
+    super.dispose();
   }
 
   List<CameraDescription>? cameras;
@@ -246,16 +256,23 @@ Widget build(BuildContext context) {
 
     );
   }
-
   CameraHandler camera = CameraHandler(
-    cameras: cameras!,
-    onControllerCreated: (controller) {
-      homePageCameraController = controller;
-      cameraActionController.setCameraController(controller);
-    },
-  );
-
-return Scaffold(
+  cameras: cameras!,
+  onControllerCreated: (controller) {
+    homePageCameraController = controller;
+    cameraActionController.setCameraController(controller);
+  },
+);
+    return SessionTimeOutListener(
+      duration: const Duration(minutes: 10),
+      onTimeOut: (){
+        FirebaseAuth.instance.signOut();
+      },
+      onWarning: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Inactivity Alert: You will be logged out in 1 minute")));
+      },
+      child: Scaffold(
     body: Stack(
       children: [
         if (cameras != null)
@@ -271,6 +288,7 @@ return Scaffold(
               color: Colors.black54, // Background color
               borderRadius: BorderRadius.circular(10), // Rounded corners
             ),
+
             child: FutureBuilder<Position>(
               future: _locationFuture,
               builder: (context, snapshot) {
@@ -409,6 +427,7 @@ return Scaffold(
         ),
       ],
     ),
+  )
   );
 }
   
