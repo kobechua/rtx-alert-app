@@ -49,8 +49,6 @@ class _HomePageState extends State<HomePage> {
 
   LocationHandler location = LocationHandler();
   String locationError = '';
-  Future<Position>? _locationFuture;
-  static bool _locationInitialized = false;
 
   late final CameraActionController cameraActionController = CameraActionController();
   CameraController? homePageCameraController;
