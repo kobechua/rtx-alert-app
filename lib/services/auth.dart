@@ -23,15 +23,21 @@ class FirebaseAuthService {
   //   await database.ref().child('Sessions/${auth.currentUser!.uid}').set({'sessionID' : convertedSessionID.toString()});
   // }
 
-  void initializeUser() async {
+  void updateTokens() async {
     final fcmToken = await FirebaseMessaging.instance.getToken();
-    database.ref().child('UserData/${auth.currentUser!.uid}').update({'email' : auth.currentUser!.email, 'tokens/$fcmToken' : ''});
+    await database.ref().child('UserData/${auth.currentUser!.uid}').update({'tokens/$fcmToken' : ''});
+  }
+
+  void initializeUser() async {
+    await database.ref().child('UserData/${auth.currentUser!.uid}').update({'email' : auth.currentUser!.email, 'points' : 0});
+    updateTokens();
   }
 
   Future<User?> signUpWithEmailAndPassword(String email, String password) async {
     try {
       UserCredential credential = await auth.createUserWithEmailAndPassword(email: email, password: password);
       // await createToken();
+      initializeUser();
       await auth.setPersistence(Persistence.SESSION);
       
       return credential.user;
@@ -47,6 +53,7 @@ class FirebaseAuthService {
     try {
       UserCredential credential = await auth.signInWithEmailAndPassword(email: email, password: password);
       // createToken();
+      updateTokens();
       await auth.setPersistence(Persistence.SESSION);
       
       return credential.user;
