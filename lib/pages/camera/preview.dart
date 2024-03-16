@@ -29,7 +29,8 @@ class _PreviewPageState extends State<PreviewPage> {
                 top: 20,
                 child: TextButton(
                   onPressed: () => {
-                    storage.uploadPhoto(widget.previewImage.path, widget.previewImage.path)
+                    storage.uploadPhoto(widget.previewImage.path, widget.previewImage.path),
+                    Navigator.of(context).pop()
                   },
                   
                   child:  const Text("Submit",  
