@@ -19,7 +19,7 @@ void pingUser() async {
   debugPrint("Pinged User: $datetime");
   FirebaseDatabase database = FirebaseDatabase.instance;
   
-  
+  await FirebaseMessaging.instance.requestPermission();
   final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.low);
   final fcmToken = await FirebaseMessaging.instance.getToken();
   database.ref().child('Locations/$fcmToken').set({'last_location' : {'latitude': position.latitude, 'longitude': position.longitude, 'timestamp': datetime}});
@@ -62,7 +62,8 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    schedulePeriodicTask();
+    pingUser();
+    // schedulePeriodicTask();
     return ChangeNotifierProvider(
         
         create: (context) => AppSettings()..loadSettings(),
