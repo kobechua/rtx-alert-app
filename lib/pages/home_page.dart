@@ -297,9 +297,9 @@ Widget build(BuildContext context) {
     if (snapshot.value is Map){
       Map<dynamic, dynamic> valueMap = snapshot.value as Map<dynamic, dynamic>;
       String storedSessionID = valueMap['sessionID'];
-      debugPrint('storedSessionID: $storedSessionID');
-      debugPrint('convertedSessionID: ${convertedSessionID.toString()}');
-      debugPrint('');
+      // debugPrint('storedSessionID: $storedSessionID');
+      // debugPrint('convertedSessionID: ${convertedSessionID.toString()}');
+      // debugPrint('');
       if (storedSessionID != convertedSessionID.toString()){
         auth.signOut();
         debugPrint("Sign out here");
