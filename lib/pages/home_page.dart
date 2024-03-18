@@ -9,6 +9,7 @@ import 'package:flutter_compass/flutter_compass.dart';
 import 'package:rtx_alert_app/pages/app_settings.dart';
 import 'package:rtx_alert_app/pages/camera/camera_handler.dart';
 import 'package:rtx_alert_app/pages/leaderboards_page.dart';
+import 'package:rtx_alert_app/pages/menu/submissions.dart';
 import 'package:rtx_alert_app/pages/rewards_page.dart';
 
 import 'package:rtx_alert_app/services/location.dart';
@@ -169,6 +170,21 @@ class _HomePageState extends State<HomePage> {
           color: Colors.transparent, // Set background color
           child: Column(
             children: [
+              const SizedBox(height: 10),
+              ListTile(
+                title: const Text('Submissions',
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                onTap: () {
+                  // Handle tap
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const SubmissionPage()));
+                },
+              ),
               const SizedBox(height: 10),
               ListTile(
                 title: const Text('Rewards',
