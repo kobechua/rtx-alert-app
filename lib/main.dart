@@ -22,7 +22,7 @@ void pingUser() async {
   await FirebaseMessaging.instance.requestPermission();
   final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.low);
   final fcmToken = await FirebaseMessaging.instance.getToken();
-  database.ref().child('Locations/$fcmToken').set({'last_location' : {'latitude': position.latitude, 'longitude': position.longitude, 'timestamp': datetime}});
+  database.ref().child('Locations/$fcmToken').set({'last_location' : {'latitude': position.latitude, 'longitude': position.longitude}, 'timestamp': datetime.toString()});
 }
 
 void callbackDispatcher() {
