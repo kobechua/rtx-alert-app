@@ -28,8 +28,9 @@ class _GreetingPageState extends State<GreetingPage> {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
+        
         if (snapshot.hasData){
-          return HomePage();
+          return const HomePage();
         } else {
           if (showLoginPage) {
             return LoginPage(

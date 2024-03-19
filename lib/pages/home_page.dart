@@ -1,9 +1,14 @@
+// import 'package:cloud_firestore/cloud_firestore.dart'; 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
+// import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'dart:async';
+import 'package:crypto/crypto.dart';
+import 'dart:convert'; 
 
 import 'package:flutter_compass/flutter_compass.dart';
 import 'package:rtx_alert_app/pages/app_settings.dart';
@@ -11,38 +16,49 @@ import 'package:rtx_alert_app/pages/camera/camera_handler.dart';
 import 'package:rtx_alert_app/pages/leaderboards_page.dart';
 import 'package:rtx_alert_app/pages/menu/submissions.dart';
 import 'package:rtx_alert_app/pages/rewards_page.dart';
+import 'package:rtx_alert_app/services/auth.dart';
 
 import 'package:rtx_alert_app/services/location.dart';
-// import 'package:rtx_alert_app/services/auth.dart';
 
 import 'package:camera/camera.dart';
 import 'package:rtx_alert_app/pages/camera/preview.dart';
 import 'package:rtx_alert_app/pages/settings_page.dart';
-import 'package:rtx_alert_app/pages/fullscreen_map.dart';
+import 'package:rtx_alert_app/services/auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
 
+import 'package:rtx_alert_app/services/session_listener.dart';
+
 
 class HomePage extends StatefulWidget {
-  HomePage({super.key});
-
-  final auth = FirebaseAuth.instance.currentUser!;
+  const HomePage({super.key});
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
+
+  FirebaseAuthService auth =  FirebaseAuthService();
+  FirebaseDatabase database = FirebaseDatabase.instance;
+  StreamSubscription<DatabaseEvent>? sessionSubscription;
+  late Digest convertedSessionID;
+  User? user;
+
   File? selectedImage;
+
   LocationHandler location = LocationHandler();
   String locationError = '';
+
   late final CameraActionController cameraActionController = CameraActionController();
   CameraController? homePageCameraController;
+
   StreamSubscription<CompassEvent>? compassListener;
   // final FirebaseAuthService auth = FirebaseAuthService();
   Future<Position>? _locationFuture;
   static bool _locationInitialized = false;
+  bool _isMapFullScreen = false;
 
   double? _azimuth;
   double normalizeAzimuth(double azimuth) {
@@ -52,12 +68,14 @@ class _HomePageState extends State<HomePage> {
     return azimuth;
   }
 
-
   @override
   void initState() {
     super.initState();
     loadCameras();
+    user = auth.auth.currentUser;
+    createToken();
     _locationFuture = location.getCurrentLocation();
+
     compassListener = FlutterCompass.events!.listen((CompassEvent event) { 
       setState(() {
         _azimuth = normalizeAzimuth(event.heading ?? 0);  //Normalize azimuth value
@@ -75,8 +93,20 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     compassListener?.cancel();
+    sessionSubscription?.cancel();
     super.dispose();
   }
+
+  Future<void> createToken() async {
+    debugPrint("Token created");
+    DateTime now = DateTime.now();
+    String sessionID =  auth.user!.uid + now.month.toString() + now.day.toString() + now.year.toString() + now.hour.toString() + now.minute.toString() + now.second.toString();
+    var encodedSessionID = utf8.encode(sessionID);
+    convertedSessionID = sha256.convert(encodedSessionID);
+    await database.ref().child('Sessions/${auth.user!.uid}').set({'sessionID' : convertedSessionID.toString()});
+  }
+
+  
 
   List<CameraDescription>? cameras;
   
@@ -244,7 +274,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 onTap: () {
                   Navigator.pop(context);
-                  FirebaseAuth.instance.signOut();
+                  auth.signOut();
                 },
               ),
               const Divider(color: Colors.black26), // Divider between ListTiles
@@ -256,6 +286,7 @@ class _HomePageState extends State<HomePage> {
       },
     );
   }
+
 
 
 @override
@@ -270,72 +301,47 @@ Widget build(BuildContext context) {
   }
 
   CameraHandler camera = CameraHandler(
-    cameras: cameras!,
-    onControllerCreated: (controller) {
-      homePageCameraController = controller;
-      cameraActionController.setCameraController(controller);
+  cameras: cameras!,
+  onControllerCreated: (controller) {
+    homePageCameraController = controller;
+    cameraActionController.setCameraController(controller);
     },
   );
 
-return Scaffold(
+  if (user != null){
+    sessionSubscription = database.ref().child('Sessions/${user!.uid}').onValue.listen((event) {
+    DataSnapshot snapshot = event.snapshot;
+    if (snapshot.value is Map){
+      Map<dynamic, dynamic> valueMap = snapshot.value as Map<dynamic, dynamic>;
+      String storedSessionID = valueMap['sessionID'];
+      debugPrint('storedSessionID: $storedSessionID');
+      debugPrint('convertedSessionID: ${convertedSessionID.toString()}');
+      debugPrint('');
+      if (storedSessionID != convertedSessionID.toString()){
+        auth.signOut();
+        debugPrint("Sign out here");
+      }
+    }
+    
+  });
+}
+
+    return SessionTimeOutListener(
+      duration: const Duration(minutes: 10),
+      onTimeOut: (){
+        auth.signOut();
+      },
+      onWarning: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Inactivity Alert: You will be logged out in 1 minute")));
+      },
+      child: Scaffold(
     body: Stack(
       children: [
         if (cameras != null)
           camera,
-        FutureBuilder<Position>(
-          future: _locationFuture, // Fetch the current location
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const CircularProgressIndicator(); // Show loading indicator
-            } else if (snapshot.hasError) {
-              return Text('Error: ${snapshot.error}'); // Show error message
-            } else if (snapshot.hasData) {
-              // Once data is fetched, update the location display along with the map
-              final position = snapshot.data!;
-              return GestureDetector(
-                onTap: () {
-                  Navigator.of(context).push(MaterialPageRoute(
-                    builder: (context) => FullScreenMapPage(center: LatLng(position.latitude, position.longitude)),
-                  ));
-                },
-                child: ClipOval(
-                  child: Container(
-                    width: 100,  // Adjust size as needed
-                    height: 100, // Adjust size as needed
-                    child: FlutterMap(
-                      options: MapOptions(
-                        initialCenter: LatLng(position.latitude, position.longitude),
-                        initialZoom: 13.0,
-                        interactionOptions: const InteractionOptions(
-                              flags: InteractiveFlag.none,
-                        )
-                      ),
-                      children: [
-                        TileLayer(
-                          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                          subdomains: const ['a', 'b', 'c'],
-                        ),
-                        MarkerLayer(
-                          markers: [
-                            Marker(
-                              width: 50.0,
-                              height: 50.0,
-                              point: LatLng(position.latitude, position.longitude),
-                              child: const Icon(Icons.location_on, size: 35.0, color: Colors.red,),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            } else {
-              return const Text('No location data');
-            }
-          },
-        ),
-        // Correctly positioned container on the top right for location info
+
+/// WIDGETS FOR THE LOCATION DATA ON THE TOP RIGHT OF THE SCREEN
         Positioned(
           top: 10,
           right: 10,
@@ -345,6 +351,7 @@ return Scaffold(
               color: Colors.black54, // Background color
               borderRadius: BorderRadius.circular(10), // Rounded corners
             ),
+
             child: FutureBuilder<Position>(
               future: _locationFuture,
               builder: (context, snapshot) {
@@ -376,8 +383,87 @@ return Scaffold(
             ),
           ),
         ),
+
+/// WIDGETS FOR THE MINI-MAP ON THE TOP LEFT OF THE SCREEN
+        FutureBuilder<Position>(
+          future: _locationFuture, // Fetch the current location
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const CircularProgressIndicator(); // Show loading indicator
+            } else if (snapshot.hasError) {
+              return Text('Error: ${snapshot.error}'); // Show error message
+            } else if (snapshot.hasData) {
+              // Once data is fetched, update the location display along with the map
+
+              final position = snapshot.data!;
+              final center = LatLng(position.latitude, position.longitude);
+
+             
+                
+                return Stack(
+                  children: [ 
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      width: _isMapFullScreen ? MediaQuery.of(context).size.width : 100,
+                      height: _isMapFullScreen ? MediaQuery.of(context).size.width : 100,
+                      child: ClipOval(
+                        child: Stack(
+                          children: [
+                            FlutterMap(
+                              options: MapOptions(
+                                initialCenter: center,
+                                initialZoom: _isMapFullScreen ? 5.0 : 13.0,
+                                interactionOptions: const InteractionOptions(
+                                  flags: InteractiveFlag.none,
+                                ),
+                              ),
+                              children: [
+                                TileLayer(
+                                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                  subdomains: const ['a', 'b', 'c'],
+                                ),
+                                MarkerLayer(
+                                  markers: [
+                                    Marker(
+                                      width: 50.0,
+                                      height: 50.0,
+                                      point: center,
+                                      child: const Icon(Icons.location_on, size: 35.0, color: Colors.red,),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            ClipOval(
+                              child: Material(
+                                color: Colors.transparent, // Keep the overlay transparent
+                                child: InkWell(
+                                  onTap: () {
+                                    setState(() {
+                                      _isMapFullScreen = !_isMapFullScreen;
+                                    });
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    
+                  ],
+                );
+                
+              
+            } else {
+              return const Text('No location data');
+            }
+          },
+        ),
+        // Correctly positioned container on the top right for location info
         
-        //button for camera to take a picture
+        
+/// WIDGETS FOR THE BUTTONS ON THE BOTTOM OF THE SCREEN
         GestureDetector(
           onTap: () {
             cameraActionController.takePhotoWithCamera!(homePageCameraController!);
@@ -404,6 +490,7 @@ return Scaffold(
         ),
       ],
     ),
+  )
   );
 }
   
