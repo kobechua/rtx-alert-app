@@ -43,7 +43,7 @@ class _SubmissionPageState extends State<SubmissionPage> {
           list.add({
           'name' : i.name,
           'photo' : url, 
-          'metadata' : i.child("metadata.jpg")});
+          'metadata' : i.child("metadata.json")});
       }
       );
       // final contents = await i.list();
@@ -93,21 +93,21 @@ class _SubmissionPageState extends State<SubmissionPage> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            const Padding(
-              padding: EdgeInsets.all(8.0),
-              child: Text(
-                "Submissions",
-                style: TextStyle(
-                  fontSize: 28.0,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ),
+            // const Padding(
+            //   padding: EdgeInsets.all(8.0),
+            //   child: Text(
+            //     "Submissions",
+            //     style: TextStyle(
+            //       fontSize: 28.0,
+            //       fontWeight: FontWeight.bold,
+            //       color: Colors.white,
+            //     ),
+            //   ),
+            // ),
             SizedBox(
               height: MediaQuery.of(context).size.height * 0.8, // Adjust the height as needed
               child: ListView.builder(
-                physics: const NeverScrollableScrollPhysics(),
+                // physics: const NeverScrollableScrollPhysics(),
                 shrinkWrap: true, 
                 itemCount: submission.length,
                 itemBuilder: (context, index) {
@@ -122,13 +122,6 @@ class _SubmissionPageState extends State<SubmissionPage> {
                       padding: const EdgeInsets.all(8.0),
                       child: Row(
                         children: [
-                          // Image.asset(
-                          //   data['photo'],
-                          //   width: 60,
-                          //   height: 60,
-                          //   fit: BoxFit.cover,
-                          // ),
-                          // if (data['photo'].toString() == "") 
                             Image.network(
                               data['photo'],
                               width: 60,
