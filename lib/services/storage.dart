@@ -25,8 +25,8 @@ class Storage {
       final File fileText = File('${directory.path}/myTextFile.json');
       await fileText.writeAsString('{"month" : ${datetime.month}}, "day" : ${datetime.day}}, "year" : ${datetime.year}}');
 
-      await storage.ref('submissions/${user!.email}/$datetime/photo.jpg').putFile(file);
-      await storage.ref('submissions/${user!.email}/$datetime/metadata.json').putFile(fileText);
+      await storage.ref('submissions/${user!.uid}/$datetime/photo.jpg').putFile(file);
+      await storage.ref('submissions/${user!.uid}/$datetime/metadata.json').putFile(fileText);
     } catch(e) {
       debugPrint(e.toString());
     }
