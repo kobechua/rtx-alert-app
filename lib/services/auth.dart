@@ -16,29 +16,31 @@ class FirebaseAuthService {
 
   // Future<void> createToken() async {
   //   debugPrint("Token created");
+  //   late Digest convertedSessionID;
   //   DateTime now = DateTime.now();
-  //   String sessionID =  auth.currentUser!.uid + now.month.toString() + now.day.toString() + now.year.toString() + now.hour.toString() + now.minute.toString() + now.second.toString();
+  //   String sessionID =  auth.currentUser!.uid + now.month.toString() + now.day.toString() + now.year.toString();
   //   var encodedSessionID = utf8.encode(sessionID);
   //   convertedSessionID = sha256.convert(encodedSessionID);
   //   await database.ref().child('Sessions/${auth.currentUser!.uid}').set({'sessionID' : convertedSessionID.toString()});
   // }
 
-  void updateTokens() async {
+  Future<void> updateTokens() async {
     final fcmToken = await FirebaseMessaging.instance.getToken();
     await database.ref().child('UserData/${auth.currentUser!.uid}').update({'tokens/$fcmToken' : ''});
   }
 
-  void initializeUser() async {
+  Future<void> initializeUser() async {
     await database.ref().child('UserData/${auth.currentUser!.uid}').update({'email' : auth.currentUser!.email, 'points' : 0});
     updateTokens();
+
   }
 
   Future<User?> signUpWithEmailAndPassword(String email, String password) async {
     try {
       UserCredential credential = await auth.createUserWithEmailAndPassword(email: email, password: password);
       // await createToken();
-      initializeUser();
-      await auth.setPersistence(Persistence.SESSION);
+      await initializeUser();
+      // await auth.setPersistence(Persistence.SESSION);
       
       return credential.user;
     }
@@ -53,8 +55,8 @@ class FirebaseAuthService {
     try {
       UserCredential credential = await auth.signInWithEmailAndPassword(email: email, password: password);
       // createToken();
-      updateTokens();
-      await auth.setPersistence(Persistence.SESSION);
+      await updateTokens();
+      // await auth.setPersistence(Persistence.SESSION);
       
       return credential.user;
     }
@@ -65,7 +67,7 @@ class FirebaseAuthService {
   }
 
   signOut() async {
-    database.ref().child('Sessions/${auth.currentUser!.uid}').remove();
+    await database.ref().child('Sessions/${auth.currentUser!.uid}').remove();
     debugPrint("Removed session from DB");
     await auth.signOut();
   }
