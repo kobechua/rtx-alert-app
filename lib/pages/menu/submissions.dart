@@ -34,18 +34,24 @@ class _SubmissionPageState extends State<SubmissionPage> {
     final dir =  storage.ref().root.child("/submissions/${user!.uid}/");
 
     final listResult = await dir.listAll();
-    for (var i in listResult.prefixes){
-        await dir.child("${i.name}/photo.jpg").getDownloadURL().then((url) {
+    int listidx = 0;
+    for (var i in listResult.items){
+      
+      debugPrint(i.name);
+      if (i.name.endsWith('photo.jpg')) {
+        listidx++;
+          await dir.child(i.name).getDownloadURL().then((url) {
           // debugPrint("URL HERE $url");
           setState(() {
             imageUrl = url;
           });
           list.add({
-          'name' : i.name,
+          'name' : listidx.toString(),
           'photo' : url, 
           'metadata' : i.child("metadata.json")});
       }
       );
+    }
       // final contents = await i.list();
 
 
@@ -122,6 +128,7 @@ class _SubmissionPageState extends State<SubmissionPage> {
                       padding: const EdgeInsets.all(8.0),
                       child: Row(
                         children: [
+                          
                             Image.network(
                               data['photo'],
                               width: 60,
