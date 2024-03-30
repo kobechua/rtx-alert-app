@@ -1,3 +1,4 @@
+// import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
 
@@ -15,6 +16,7 @@ class _PreviewPageState extends State<PreviewPage> {
   @override
   Widget build(BuildContext context) {
     final Storage storage = Storage();
+
     return Scaffold(
       appBar: 
           AppBar(
@@ -28,9 +30,9 @@ class _PreviewPageState extends State<PreviewPage> {
                 right: 20,
                 top: 20,
                 child: TextButton(
-                  onPressed: () => {
+                  onPressed: () => { 
                     storage.uploadPhoto(widget.previewImage.path, widget.previewImage.path),
-                    Navigator.of(context).pop()
+                    Navigator.of(context).pop(),
                   },
                   
                   child:  const Text("Submit",  

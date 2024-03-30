@@ -1,6 +1,7 @@
 // import 'package:cloud_firestore/cloud_firestore.dart'; 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 // import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -99,6 +100,31 @@ class _HomePageState extends State<HomePage> {
     convertedSessionID = '';
     super.dispose();
   }
+
+  //   Future<void> setupInteractedMessage() async {
+  //   // Get any messages which caused the application to open from
+  //   // a terminated state.
+  //   RemoteMessage? initialMessage =
+  //       await FirebaseMessaging.instance.getInitialMessage();
+
+  //   // If the message also contains a data property with a "type" of "chat",
+  //   // navigate to a chat screen
+  //   if (initialMessage != null) {
+  //     handleMessage(initialMessage);
+  //   }
+
+  //   // Also handle any interaction when the app is in the background via a
+  //   // Stream listener
+  //   FirebaseMessaging.onMessageOpenedApp.listen(handleMessage);
+  // }
+
+  //   void handleMessage(RemoteMessage message) {
+  //   if (message.data['type'] == 'chat') {
+  //     Navigator.pushNamed(context, '/chat',
+  //       arguments: ChatArguments(message),
+  //     );
+  //   }
+  // }
 
   Future<void> createToken() async {
     debugPrint("Token created");
@@ -311,30 +337,36 @@ Widget build(BuildContext context) {
     },
   );
 
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    debugPrint('Message data: ${message.notification!.body}');
+
+    if (message.notification != null) {
+      debugPrint('Message also contained a notification: ${message.notification!.title}');
+    }
+  });
+
+
   if (user != null){
 
     sessionSubscription = database.ref().child('Sessions/${user!.uid}').onValue.listen((event) {
-    DataSnapshot snapshot = event.snapshot;
-    if (snapshot.value is Map){
-      Map<dynamic, dynamic> valueMap = snapshot.value as Map<dynamic, dynamic>;
-      String storedSessionID = valueMap['sessionID'];
-      debugPrint('storedSessionID: $storedSessionID');
-      debugPrint('convertedSessionID: $convertedSessionID');
-      debugPrint('');
+      DataSnapshot snapshot = event.snapshot;
+      if (snapshot.value is Map){
+        Map<dynamic, dynamic> valueMap = snapshot.value as Map<dynamic, dynamic>;
+        String storedSessionID = valueMap['sessionID'];
 
-      if (storedSessionID != convertedSessionID && convertedSessionID != ''){
+        if (storedSessionID != convertedSessionID && convertedSessionID != ''){
 
-        debugPrint("SIGNOUTTOKEN");
-        // convertedSessionID = '';
-        auth.signOut();
+          debugPrint("SIGNOUTTOKEN");
+          // convertedSessionID = '';
+          auth.signOut();
+        }
       }
-    }
     
-  });
+    });
 }
 
     return SessionTimeOutListener(
-      duration: const Duration(minutes: 1),
+      duration: const Duration(minutes: 10),
       onTimeOut: () async {
         debugPrint("SIGNOUTTIMER");
         await auth.signOut();
