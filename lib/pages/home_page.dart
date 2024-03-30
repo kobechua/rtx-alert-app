@@ -366,7 +366,7 @@ Widget build(BuildContext context) {
 }
 
     return SessionTimeOutListener(
-      duration: const Duration(minutes: 10),
+      duration: const Duration(minutes: 1),
       onTimeOut: () async {
         debugPrint("SIGNOUTTIMER");
         await auth.signOut();
