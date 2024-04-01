@@ -14,6 +14,7 @@ import 'package:flutter_compass/flutter_compass.dart';
 import 'package:rtx_alert_app/pages/app_settings.dart';
 import 'package:rtx_alert_app/pages/camera/camera_handler.dart';
 import 'package:rtx_alert_app/pages/leaderboards_page.dart';
+import 'package:rtx_alert_app/pages/menu/submissions.dart';
 import 'package:rtx_alert_app/pages/rewards_page.dart';
 import 'package:rtx_alert_app/services/auth.dart';
 
@@ -22,7 +23,7 @@ import 'package:rtx_alert_app/services/location.dart';
 import 'package:camera/camera.dart';
 import 'package:rtx_alert_app/pages/camera/preview.dart';
 import 'package:rtx_alert_app/pages/settings_page.dart';
-import 'package:rtx_alert_app/services/auth.dart';
+// import 'package:rtx_alert_app/services/auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
@@ -32,7 +33,7 @@ import 'package:rtx_alert_app/services/session_listener.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
-
+  
   @override
   State<HomePage> createState() => _HomePageState();
 }
@@ -42,7 +43,7 @@ class _HomePageState extends State<HomePage> {
   FirebaseAuthService auth =  FirebaseAuthService();
   FirebaseDatabase database = FirebaseDatabase.instance;
   StreamSubscription<DatabaseEvent>? sessionSubscription;
-  late Digest convertedSessionID;
+  late String convertedSessionID;
   User? user;
 
   File? selectedImage;
@@ -68,11 +69,13 @@ class _HomePageState extends State<HomePage> {
   }
 
   @override
-  void initState() {
+  void initState()  {
     super.initState();
+    createToken(); //Token should be made before reachinng this page. could try making token in greeting then pulling it here
+    // convertedSessionID = auth.convertedSessionID;
     loadCameras();
     user = auth.auth.currentUser;
-    createToken();
+    
     _locationFuture = location.getCurrentLocation();
 
     compassListener = FlutterCompass.events!.listen((CompassEvent event) { 
@@ -93,6 +96,7 @@ class _HomePageState extends State<HomePage> {
   void dispose() {
     compassListener?.cancel();
     sessionSubscription?.cancel();
+    convertedSessionID = '';
     super.dispose();
   }
 
@@ -101,7 +105,7 @@ class _HomePageState extends State<HomePage> {
     DateTime now = DateTime.now();
     String sessionID =  auth.user!.uid + now.month.toString() + now.day.toString() + now.year.toString() + now.hour.toString() + now.minute.toString() + now.second.toString();
     var encodedSessionID = utf8.encode(sessionID);
-    convertedSessionID = sha256.convert(encodedSessionID);
+    convertedSessionID = sha256.convert(encodedSessionID).toString();
     await database.ref().child('Sessions/${auth.user!.uid}').set({'sessionID' : convertedSessionID.toString()});
   }
 
@@ -201,6 +205,21 @@ class _HomePageState extends State<HomePage> {
             children: [
               const SizedBox(height: 10),
               ListTile(
+                title: const Text('Submissions',
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                onTap: () {
+                  // Handle tap
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const SubmissionPage()));
+                },
+              ),
+              const SizedBox(height: 10),
+              ListTile(
                 title: const Text('Rewards',
                   style: TextStyle(
                     color: Colors.black87,
@@ -276,7 +295,7 @@ class _HomePageState extends State<HomePage> {
 @override
 Widget build(BuildContext context) {
   final appSettings = Provider.of<AppSettings>(context, listen: true);
-
+  
   if (cameras == null) {
     return const Scaffold(
       body: Center(child: CircularProgressIndicator()),
@@ -293,17 +312,21 @@ Widget build(BuildContext context) {
   );
 
   if (user != null){
+
     sessionSubscription = database.ref().child('Sessions/${user!.uid}').onValue.listen((event) {
     DataSnapshot snapshot = event.snapshot;
     if (snapshot.value is Map){
       Map<dynamic, dynamic> valueMap = snapshot.value as Map<dynamic, dynamic>;
       String storedSessionID = valueMap['sessionID'];
       debugPrint('storedSessionID: $storedSessionID');
-      debugPrint('convertedSessionID: ${convertedSessionID.toString()}');
+      debugPrint('convertedSessionID: $convertedSessionID');
       debugPrint('');
-      if (storedSessionID != convertedSessionID.toString()){
+
+      if (storedSessionID != convertedSessionID && convertedSessionID != ''){
+
+        debugPrint("SIGNOUTTOKEN");
+        // convertedSessionID = '';
         auth.signOut();
-        debugPrint("Sign out here");
       }
     }
     
@@ -311,9 +334,10 @@ Widget build(BuildContext context) {
 }
 
     return SessionTimeOutListener(
-      duration: const Duration(minutes: 10),
-      onTimeOut: (){
-        auth.signOut();
+      duration: const Duration(minutes: 1),
+      onTimeOut: () async {
+        debugPrint("SIGNOUTTIMER");
+        await auth.signOut();
       },
       onWarning: () {
         ScaffoldMessenger.of(context).showSnackBar(
