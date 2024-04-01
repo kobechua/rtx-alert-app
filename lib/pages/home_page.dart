@@ -43,6 +43,7 @@ class _HomePageState extends State<HomePage> {
 
   FirebaseAuthService auth =  FirebaseAuthService();
   FirebaseDatabase database = FirebaseDatabase.instance;
+  final FirebaseMessaging firebaseMessaging = FirebaseMessaging.instance;
   StreamSubscription<DatabaseEvent>? sessionSubscription;
   late String convertedSessionID;
   User? user;
@@ -76,7 +77,7 @@ class _HomePageState extends State<HomePage> {
     // convertedSessionID = auth.convertedSessionID;
     loadCameras();
     user = auth.auth.currentUser;
-    
+    initializeFirebaseMessaging();
     _locationFuture = location.getCurrentLocation();
 
     compassListener = FlutterCompass.events!.listen((CompassEvent event) { 
@@ -101,30 +102,38 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
-  //   Future<void> setupInteractedMessage() async {
-  //   // Get any messages which caused the application to open from
-  //   // a terminated state.
-  //   RemoteMessage? initialMessage =
-  //       await FirebaseMessaging.instance.getInitialMessage();
+    void initializeFirebaseMessaging() {
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      // Assuming 'notification' exists and contains a title and body.
+      String title = message.notification?.title ?? "No Title";
+      String body = message.notification?.body ?? "No Body";
 
-  //   // If the message also contains a data property with a "type" of "chat",
-  //   // navigate to a chat screen
-  //   if (initialMessage != null) {
-  //     handleMessage(initialMessage);
-  //   }
+      _showNotificationAlert(title, body);
+    });
 
-  //   // Also handle any interaction when the app is in the background via a
-  //   // Stream listener
-  //   FirebaseMessaging.onMessageOpenedApp.listen(handleMessage);
-  // }
+    // Request permission for iOS devices
+    firebaseMessaging.requestPermission();
+  }
 
-  //   void handleMessage(RemoteMessage message) {
-  //   if (message.data['type'] == 'chat') {
-  //     Navigator.pushNamed(context, '/chat',
-  //       arguments: ChatArguments(message),
-  //     );
-  //   }
-  // }
+  void _showNotificationAlert(String title, String body) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(title),
+          content: Text(body),
+          actions: [
+            TextButton(
+              child: const Text("OK"),
+              onPressed: () {
+                Navigator.of(context).pop(); // Dismiss the dialog
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   Future<void> createToken() async {
     debugPrint("Token created");
@@ -337,13 +346,29 @@ Widget build(BuildContext context) {
     },
   );
 
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    debugPrint('Message data: ${message.notification!.body}');
+  // FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+  //   debugPrint('Message data: ${message.notification!.body}');
 
-    if (message.notification != null) {
-      debugPrint('Message also contained a notification: ${message.notification!.title}');
-    }
-  });
+  //   if (message.notification != null) {
+  //     debugPrint('Message also contained a notification: ${message.notification!.title}');
+  //         showDialog(
+  //           context: context,
+  //           builder: (context) => AlertDialog(
+  //             actions: [
+  //               TextButton(
+  //                 onPressed: () {
+  //                   Navigator.of(context).pop();
+  //                 },
+  //                child: const Text('Close')
+  //               ),
+  //             ],
+  //             title : Text(message.notification!.title.toString()),
+  //             contentPadding: const EdgeInsets.all(20.0),
+  //             content:  Text(message.notification!.body.toString())
+  //           )
+  //         );
+  //   }
+  // });
 
 
   if (user != null){

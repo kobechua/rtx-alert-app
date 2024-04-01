@@ -11,7 +11,7 @@ import 'package:rtx_alert_app/pages/greeting_page/greeting_page.dart';
 import 'package:provider/provider.dart';
 import 'package:rtx_alert_app/pages/app_settings.dart';
 import 'package:firebase_core/firebase_core.dart';
-
+import 'package:rtx_alert_app/services/notifications.dart';
 
 
 void pingUser() async {
@@ -53,17 +53,18 @@ void main() async {
     options: DefaultFirebaseOptions.android,
   );
   
-  FirebaseMessaging messaging = FirebaseMessaging.instance;
-
-  await messaging.requestPermission(
-    alert: true,
-    announcement: false,
-    badge: true,
-    carPlay: false,
-    criticalAlert: false,
-    provisional: false,
-    sound: true,
-  );
+  // FirebaseMessaging messaging = FirebaseMessaging.instance;
+  
+  await FirebaseMessagingAPI().initNotifications();
+  // await messaging.requestPermission(
+  //   alert: true,
+  //   announcement: false,
+  //   badge: true,
+  //   carPlay: false,
+  //   criticalAlert: false,
+  //   provisional: false,
+  //   sound: true,
+  // );
   pingUser();
   runApp(const MyApp());
 }
