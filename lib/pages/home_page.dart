@@ -167,7 +167,7 @@ class _HomePageState extends State<HomePage> {
       if (!mounted) return;
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (context) => PreviewPage(previewImage: selectedImageFile),
+          builder: (context) => PreviewPage(previewImage: selectedImageFile, azimuth: _azimuth ?? 0),
         ),
       );
     }
@@ -178,7 +178,7 @@ class _HomePageState extends State<HomePage> {
     if (!mounted) return;
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => PreviewPage(previewImage: File(image.path)),
+        builder: (context) => PreviewPage(previewImage: File(image.path),  azimuth: _azimuth ?? 0),
       ),
     );
   }

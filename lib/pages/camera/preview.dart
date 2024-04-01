@@ -6,7 +6,8 @@ import '../../services/storage.dart';
 
 class PreviewPage extends StatefulWidget {
   final File previewImage;
-  const PreviewPage({super.key, required this.previewImage});
+  final double azimuth;
+  const PreviewPage({super.key, required this.previewImage, required this.azimuth});
 
   @override
   State<PreviewPage> createState() => _PreviewPageState();
@@ -31,7 +32,7 @@ class _PreviewPageState extends State<PreviewPage> {
                 top: 20,
                 child: TextButton(
                   onPressed: () => { 
-                    storage.uploadPhoto(widget.previewImage.path, widget.previewImage.path),
+                    storage.uploadPhoto(widget.previewImage.path, widget.previewImage.path, widget.azimuth),
                     Navigator.of(context).pop(),
                   },
                   

@@ -2,7 +2,8 @@
 // import 'package:flutter/foundation.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_database/firebase_database.dart';
+// import 'package:firebase_storage/firebase_storage.dart';
 
 import 'package:flutter/material.dart';
 // import 'package:rtx_alert_app/components/my_button.dart';
@@ -25,59 +26,80 @@ class _SubmissionPageState extends State<SubmissionPage> {
   @override
   void initState() {
     super.initState();
-    getSubmissions();
+    getSubmissionsDB();
   }
 
-  Future<List<Map<String, dynamic>>> getSubmissions() async {
-    final storage = FirebaseStorage.instance;
-    List<Map<String, dynamic>> list = [];
-    final dir =  storage.ref().root.child("/submissions/${user!.uid}/");
+  // Future<List<Map<String, dynamic>>> getSubmissions() async {
+  //   final storage = FirebaseStorage.instance;
+  //   List<Map<String, dynamic>> list = [];
+  //   final dir =  storage.ref().root.child("/submissions/${user!.uid}/");
 
-    final listResult = await dir.listAll();
-    int listidx = 0;
-    for (var i in listResult.items){
+  //   final listResult = await dir.listAll();
+  //   int listidx = 0;
+  //   for (var i in listResult.items){
       
-      debugPrint(i.name);
-      if (i.name.endsWith('photo.jpg')) {
-        listidx++;
-          await dir.child(i.name).getDownloadURL().then((url) {
-          // debugPrint("URL HERE $url");
-          setState(() {
-            imageUrl = url;
-          });
-          list.add({
-          'name' : listidx.toString(),
-          'photo' : url, 
-          'metadata' : i.child("metadata.json")});
-      }
-      );
-    }
-      // final contents = await i.list();
+  //     debugPrint(i.name);
+  //     if (i.name.endsWith('photo.jpg')) {
+  //       listidx++;
+  //         await dir.child(i.name).getDownloadURL().then((url) {
+  //         setState(() {
+  //           imageUrl = url;
+  //         });
+  //         list.add({
+  //         'name' : listidx.toString(),
+  //         'photo' : url, 
+  //         'metadata' : i.child("metadata.json")});
+  //     }
+  //     );
+  //   }
 
-
-      // debugPrint(i.name);
-      // list.add({
-      //   'name' : i.name,
-      //   'photo' : imageUrl, 
-      //   'metadata' : contents.items.last});
-    }
+  //   }
     
+  //   setState(() {
+  //     submission = [...list];
+  //   });
+
+  //   return list;
+  // }
+
+  Future<List<Map<String, dynamic>>> getSubmissionsDB() async {
+    final database = FirebaseDatabase.instance;
+    List<Map<String, dynamic>> list = [];
+    final dir = database.ref('UserData/${user!.uid}/submissions');
+    final DataSnapshot snapshot = await dir.get();
+
+    if (snapshot.exists) {
+            Map<dynamic, dynamic> submissions = snapshot.value as Map<dynamic, dynamic>;
+      submissions.forEach((key, value) {
+        // Assuming 'photo' is the URL to the photo and there's a 'metadata' object
+        // debugPrint('submissions: $key');
+        final entry = {
+          'name': key, // Or any other identifier you use for submissions
+          'photo': value['photo'],
+          'data': value['data'], // This will be a Map if your metadata is structured
+        };
+        list.add(entry);
+      });
+    } else {
+      debugPrint("No submissions found.");
+    }
     setState(() {
       submission = [...list];
     });
-
     return list;
   }
 
+  
+
   @override
   Widget build(BuildContext context) {
-    debugPrint(submission.length.toString());
+    // debugPrint(submission.length.toString());
 
-    debugPrint("Start here");
-    for (var listIndex in submission){
-      debugPrint(listIndex['photo']);
-    }
-    debugPrint("End here");
+    // debugPrint("Start here");
+    // for (var listIndex in submission){
+    //   debugPrint(listIndex['photo']);
+    // }
+    // debugPrint("End here");
     return Scaffold(
 
 // HERE
