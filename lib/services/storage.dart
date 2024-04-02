@@ -44,7 +44,8 @@ class Storage {
             '${datetime.month}-${datetime.day}-${datetime.year} ${datetime.hour}:${datetime.minute}:${datetime.second}' : {
                   'photo': url,
                   'date': datetime.toString(),
-                  'data' : {'long' : pos.longitude, 'lat' : pos.latitude, 'alt' : pos.altitude, 'azimuth' : azimuth}
+                  'data' : {'long' : pos.longitude, 'lat' : pos.latitude, 'alt' : pos.altitude, 'azimuth' : azimuth},
+                  'status' : 'TBR'
               
               }
             
