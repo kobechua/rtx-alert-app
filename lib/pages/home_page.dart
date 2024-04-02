@@ -246,7 +246,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 onTap: () {
                   // Handle tap
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => LeaderboardsPage()));
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => LeaderboardPage()));
 
                 },
               ),

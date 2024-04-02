@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 
 class RewardsPage extends StatefulWidget {
-  RewardsPage({Key? key}) : super(key: key);
+  const RewardsPage({super.key});
 
   @override
   _RewardsPageState createState() => _RewardsPageState();
