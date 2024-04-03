@@ -84,7 +84,7 @@ Future<List<Map<String, dynamic>>> getSubmissionsDB() async {
         return; // Skip this iteration
       }
 
-      debugPrint('decode: ${submissionValue}');
+      // debugPrint('decode: ${submissionValue}');
       final entry = {
         'name': submissionKey,
         'photo': submissionValue['photo'],
@@ -161,7 +161,7 @@ Future<List<Map<String, dynamic>>> getSubmissionsDB() async {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    data['name'],
+                                    '${data['name']}\nStatus: ${metadata['status'] ?? 'NONE'}',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
@@ -192,13 +192,14 @@ Future<List<Map<String, dynamic>>> getSubmissionsDB() async {
                                           ),
                                           
                                           Text(metadata['date'].toString()),
-                                          Text('Location \nLongitude: ${metadata['data']['long']}, Latitude: ${metadata['data']['lat']}'),
+                                          Text('Location: Longitude: ${metadata['data']['long']}, Latitude: ${metadata['data']['lat']}'),
+                                          Text('Status: ${ metadata['status'] ?? 'NONE'}'),
                                           const SizedBox(height: 15),
 
                                           TextButton(
                                             onPressed: () {
                                             Navigator.pop(context);
-                                          },
+                                            },
 
                                           child: const Text('Close'))
                                         ]
