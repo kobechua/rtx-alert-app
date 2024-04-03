@@ -367,16 +367,42 @@ Widget build(BuildContext context) {
                   final altitude = appSettings.convertAltitude(snapshot.data!.altitude);
                   final altitudeUnit = appSettings.useEnglishUnits ? "feet" : "meters";
 
-                  return Text(
-                    'LAT: ${snapshot.data!.latitude.toStringAsFixed(2)}°, \n'
-                    'LON: ${snapshot.data!.longitude.toStringAsFixed(2)}°, \n'
-                    'Azimuth: ${_azimuth?.toStringAsFixed(3)}°, \n'
-                    'ALT: ${altitude.toStringAsFixed(2)} $altitudeUnit',
-                    
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  String formattedLatitude = appSettings.formatLatitude(snapshot.data!.latitude);
+                  String formattedLongitude = appSettings.formatLongitude(snapshot.data!.longitude);
+
+                  
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'LAT: $formattedLatitude', // Use formatted latitude
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'LON: $formattedLongitude', // Use formatted longitude
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'Azimuth: ${_azimuth?.toStringAsFixed(3)}°',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'ALT: ${altitude.toStringAsFixed(2)} $altitudeUnit',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   );
                 } else {
                   return const Text(
