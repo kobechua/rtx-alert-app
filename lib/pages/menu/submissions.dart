@@ -161,7 +161,7 @@ Future<List<Map<String, dynamic>>> getSubmissionsDB() async {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    '${data['name']}\nStatus: ${metadata['status'] ?? 'NONE'}',
+                                    '${data['name']}\nStatus: ${metadata['status']['Success'] ? "Car Detected"  : 'No Car Detected'}',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
@@ -191,9 +191,11 @@ Future<List<Map<String, dynamic>>> getSubmissionsDB() async {
                                             child: Image.network(data['photo'], fit: BoxFit.contain),
                                           ),
                                           
-                                          Text(metadata['date'].toString()),
-                                          Text('Location: Longitude: ${metadata['data']['long']}, Latitude: ${metadata['data']['lat']}'),
-                                          Text('Status: ${ metadata['status'] ?? 'NONE'}'),
+                                          Text('Date: ${metadata['date'].toString()}'),
+                                          Text('Location\n      Longitude: ${metadata['data']['long']}, Latitude: ${metadata['data']['lat']}'),
+                                          metadata['status']['Success'] == true
+                                                  ? Text('Car Details\n     Color: ${ metadata['status']['Color'] ?? 'NONE'}, ${(metadata['status']['C_prob']*100).toStringAsFixed(2) ?? 'NONE'}%\n     Make, Model: ${ metadata['status']['Make'] ?? 'NONE'} ${metadata['status']['Model'] ?? 'NONE'}, ${(metadata['status']['MM_prob']*100).toStringAsFixed(2) ?? 'NONE'}%')
+                                                  : const Text('No car detected in this picture'),
                                           const SizedBox(height: 15),
 
                                           TextButton(

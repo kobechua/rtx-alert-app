@@ -265,7 +265,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 onTap: () {
                   // Handle tap
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => RewardsPage()));
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const RewardsPage()));
                 },
               ),
               const Divider(color: Colors.black26), // Divider between ListTiles
@@ -281,7 +281,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 onTap: () {
                   // Handle tap
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => LeaderboardPage()));
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const LeaderboardPage()));
 
                 },
               ),
@@ -297,7 +297,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 onTap: () {
                   // Handle tap
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => SettingsPage()));
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsPage()));
                 },
               ),
               const Divider(color: Colors.black26), // Divider between ListTiles
