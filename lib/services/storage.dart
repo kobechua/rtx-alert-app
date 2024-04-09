@@ -27,10 +27,6 @@ class Storage {
     try {
       DateTime datetime = DateTime.now();
 
-
-      // final Directory directory = await getApplicationDocumentsDirectory();
-
-
       await storage.ref('submissions/${user!.uid}/${datetime}photo.jpg').putFile(file);
 
       String url = await storage.ref('submissions/${user!.uid}/${datetime}photo.jpg').getDownloadURL();

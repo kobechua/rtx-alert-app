@@ -1,9 +1,5 @@
-// import 'package:firebase_auth/firebase_auth.dart';
-
 import 'package:flutter/material.dart';
 import 'package:rtx_alert_app/components/my_button.dart';
-// import 'package:rtx_alert_app/pages/home.dart';
-// import 'package:rtx_alert_app/pages/home_page.dart';
 import 'package:rtx_alert_app/services/auth.dart';
 
 
@@ -37,14 +33,17 @@ class _LoginPageState extends State<LoginPage> {
     void signIn() async {
       String email = emailController.text;
       String password = passwordController.text;
+      try {
+        await auth.signInWithEmailAndPassword(email, password);
+      } catch(e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+          ),
+        );
 
-      await auth.signInWithEmailAndPassword(email, password);
-
-
-      // if (!context.mounted) return;
-      // if (user != null){
-      //   Navigator.push(context, MaterialPageRoute(builder: (context) => const HomePage()));
-      // }
+      }
     }
 
     return Scaffold(
@@ -145,6 +144,9 @@ class _LoginPageState extends State<LoginPage> {
         ),
       ),
     );
+  }
+  void showAlert(BuildContext context, String text) {
+
   }
 }
 

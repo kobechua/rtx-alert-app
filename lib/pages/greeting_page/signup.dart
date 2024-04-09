@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:rtx_alert_app/components/my_button.dart';
-// import 'package:rtx_alert_app/pages/home_page.dart';
 import 'package:rtx_alert_app/services/auth.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-// import 'package:firebase_core/firebase_core.dart';
+
 
 class SignUpPage extends StatefulWidget {
   final Function()? onTap;
@@ -47,13 +45,15 @@ class _SignUpPageState extends State<SignUpPage> {
           const SnackBar(content: Text("Passwords do not match.")));
       }
       else{
-        User? user = await auth.signUpWithEmailAndPassword(email, password);
-
-        if (!context.mounted) return;
-        if (user != null){
+        try {
+          await auth.signUpWithEmailAndPassword(email, password);
+        } catch (e) {
+          if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Success.")));
-          // Navigator.push(context, MaterialPageRoute(builder: (context) => HomePage()));
+            SnackBar(
+              content: Text(e.toString()),
+            ),
+          );
         }
       }
     }

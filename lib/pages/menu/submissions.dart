@@ -69,7 +69,7 @@ Future<List<Map<String, dynamic>>> getSubmissionsDB() async {
   if (snapshot.exists) {
     Map<dynamic, dynamic> submissions = snapshot.value as Map<dynamic, dynamic>;
     submissions.forEach((key, value) {
-      debugPrint('submissions- ${value['data']}');
+      debugPrint('submissions- ${value['status']}');
       
       // Ensure key is a String and value is properly casted
       String submissionKey = key as String;
@@ -160,12 +160,19 @@ Future<List<Map<String, dynamic>>> getSubmissionsDB() async {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  metadata['status'] != 'Processing' ? 
                                   Text(
                                     '${data['name']}\nStatus: ${metadata['status']['Success'] ? "Car Detected"  : 'No Car Detected'}',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
                                     ),
+                                  ) : 
+                                  const Text('Processing',
+                                      style:  TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    )
                                   ),
                                   const SizedBox(height: 4),
                                   // Text(reward['description']),

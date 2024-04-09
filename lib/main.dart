@@ -9,7 +9,7 @@ import 'package:workmanager/workmanager.dart';
 import 'package:rtx_alert_app/pages/greeting_page/greeting_page.dart';
 
 import 'package:provider/provider.dart';
-import 'package:rtx_alert_app/pages/app_settings.dart';
+import 'package:rtx_alert_app/pages/menu/app_settings.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:rtx_alert_app/services/notifications.dart';
 

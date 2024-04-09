@@ -12,18 +12,18 @@ import 'package:crypto/crypto.dart';
 import 'dart:convert'; 
 
 import 'package:flutter_compass/flutter_compass.dart';
-import 'package:rtx_alert_app/pages/app_settings.dart';
+import 'package:rtx_alert_app/pages/menu/app_settings.dart';
 import 'package:rtx_alert_app/pages/camera/camera_handler.dart';
-import 'package:rtx_alert_app/pages/leaderboards_page.dart';
+import 'package:rtx_alert_app/pages/menu/leaderboards_page.dart';
 import 'package:rtx_alert_app/pages/menu/submissions.dart';
-import 'package:rtx_alert_app/pages/rewards_page.dart';
+import 'package:rtx_alert_app/pages/menu/rewards_page.dart';
 import 'package:rtx_alert_app/services/auth.dart';
 
 import 'package:rtx_alert_app/services/location.dart';
 
 import 'package:camera/camera.dart';
 import 'package:rtx_alert_app/pages/camera/preview.dart';
-import 'package:rtx_alert_app/pages/settings_page.dart';
+import 'package:rtx_alert_app/pages/menu/settings_page.dart';
 // import 'package:rtx_alert_app/services/auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -57,7 +57,7 @@ class _HomePageState extends State<HomePage> {
   CameraController? homePageCameraController;
 
   StreamSubscription<CompassEvent>? compassListener;
-  // final FirebaseAuthService auth = FirebaseAuthService();
+
   Future<Position>? _locationFuture;
   static bool _locationInitialized = false;
   bool _isMapFullScreen = false;
@@ -73,8 +73,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState()  {
     super.initState();
-    createToken(); //Token should be made before reachinng this page. could try making token in greeting then pulling it here
-    // convertedSessionID = auth.convertedSessionID;
+    createToken();
     loadCameras();
     user = auth.auth.currentUser;
     initializeFirebaseMessaging();
