@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'app_settings.dart';
 
 class SettingsPage extends StatefulWidget {
-  SettingsPage({Key? key}) : super(key: key);
+  const SettingsPage({super.key});
 
   @override
   _SettingsPageState createState() => _SettingsPageState();
@@ -107,6 +107,28 @@ class _SettingsPageState extends State<SettingsPage> {
             title: const Text('Degrees and Decimal Minutes'),
             leading: Radio<int>(
               value: AppSettings.degreesDecimalMinutes,
+              groupValue: appSettings.representationType,
+              onChanged: (value) {
+                appSettings.setRepresentationType(value!);
+              },
+              activeColor: Colors.black,
+            ),
+          ),
+          ListTile(
+            title: const Text('UTM'),
+            leading: Radio<int>(
+              value: AppSettings.utm,
+              groupValue: appSettings.representationType,
+              onChanged: (value) {
+                appSettings.setRepresentationType(value!);
+              },
+              activeColor: Colors.black,
+            ),
+          ),
+          ListTile(
+            title: const Text('MGRS'),
+            leading: Radio<int>(
+              value: AppSettings.mgrs,
               groupValue: appSettings.representationType,
               onChanged: (value) {
                 appSettings.setRepresentationType(value!);
