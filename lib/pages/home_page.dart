@@ -252,7 +252,7 @@ class _HomePageState extends State<HomePage> {
                   Navigator.push(context, MaterialPageRoute(builder: (context) => const SubmissionPage()));
                 },
               ),
-              const SizedBox(height: 10),
+              const Divider(color: Colors.black26),
               ListTile(
                 title: const Text('Rewards',
                   style: TextStyle(
@@ -345,31 +345,6 @@ Widget build(BuildContext context) {
     },
   );
 
-  // FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-  //   debugPrint('Message data: ${message.notification!.body}');
-
-  //   if (message.notification != null) {
-  //     debugPrint('Message also contained a notification: ${message.notification!.title}');
-  //         showDialog(
-  //           context: context,
-  //           builder: (context) => AlertDialog(
-  //             actions: [
-  //               TextButton(
-  //                 onPressed: () {
-  //                   Navigator.of(context).pop();
-  //                 },
-  //                child: const Text('Close')
-  //               ),
-  //             ],
-  //             title : Text(message.notification!.title.toString()),
-  //             contentPadding: const EdgeInsets.all(20.0),
-  //             content:  Text(message.notification!.body.toString())
-  //           )
-  //         );
-  //   }
-  // });
-
-
   if (user != null){
 
     sessionSubscription = database.ref().child('Sessions/${user!.uid}').onValue.listen((event) {
@@ -390,7 +365,7 @@ Widget build(BuildContext context) {
 }
 
     return SessionTimeOutListener(
-      duration: const Duration(minutes: 10),
+      duration: const Duration(minutes: 1),
       onTimeOut: () async {
         debugPrint("SIGNOUTTIMER");
         await auth.signOut();

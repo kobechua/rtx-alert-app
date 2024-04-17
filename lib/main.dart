@@ -5,6 +5,8 @@ import 'package:rtx_alert_app/firebase_options.dart';
 
 import 'package:firebase_database/firebase_database.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:rtx_alert_app/services/auth.dart';
+import 'package:rtx_alert_app/services/session_listener.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:rtx_alert_app/pages/greeting_page/greeting_page.dart';
 
@@ -53,18 +55,12 @@ void main() async {
     options: DefaultFirebaseOptions.android,
   );
   
-  // FirebaseMessaging messaging = FirebaseMessaging.instance;
+  FirebaseAuthService auth = FirebaseAuthService();
   
   await FirebaseMessagingAPI().initNotifications();
-  // await messaging.requestPermission(
-  //   alert: true,
-  //   announcement: false,
-  //   badge: true,
-  //   carPlay: false,
-  //   criticalAlert: false,
-  //   provisional: false,
-  //   sound: true,
-  // );
+  if (auth.user != null){
+    auth.signOut();
+  }
   pingUser();
   runApp(const MyApp());
 }
@@ -77,13 +73,16 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     pingUser();
     // schedulePeriodicTask();
-    return ChangeNotifierProvider(
-        
-        create: (context) => AppSettings()..loadSettings(),
-        child: const MaterialApp(
-          home: GreetingPage(),
-        ),
-      ); 
+    return SessionTimeOutListener(
+      duration: const Duration(minutes : 1), onTimeOut: pingUser, onWarning: pingUser,
+        child:
+        ChangeNotifierProvider(
+          create: (context) => AppSettings()..loadSettings(),
+          child: const MaterialApp(
+            home: GreetingPage(),
+          ),
+        ), 
+    );
   }
 }
 
