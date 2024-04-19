@@ -4,8 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:rtx_alert_app/firebase_options.dart';
 
 import 'package:firebase_database/firebase_database.dart';
-import 'package:geolocator/geolocator.dart';
+// import 'package:geolocator/geolocator.dart';
 import 'package:rtx_alert_app/services/auth.dart';
+import 'package:rtx_alert_app/services/location.dart';
 import 'package:rtx_alert_app/services/session_listener.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:rtx_alert_app/pages/greeting_page/greeting_page.dart';
@@ -22,7 +23,8 @@ void pingUser() async {
   FirebaseDatabase database = FirebaseDatabase.instance;
   
   await FirebaseMessaging.instance.requestPermission();
-  final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.low);
+  final position = LocationHandler();
+  position.getCurrentLocation();
   final fcmToken = await FirebaseMessaging.instance.getToken();
   database.ref().child('Locations/$fcmToken').set({'last_location' : {'latitude': position.latitude, 'longitude': position.longitude}, 'timestamp': datetime.toString()});
 }
@@ -74,7 +76,7 @@ class MyApp extends StatelessWidget {
     pingUser();
     // schedulePeriodicTask();
     return SessionTimeOutListener(
-      duration: const Duration(minutes : 1), onTimeOut: pingUser, onWarning: pingUser,
+      duration: const Duration(minutes : 10), onTimeOut: pingUser, onWarning: pingUser,
         child:
         ChangeNotifierProvider(
           create: (context) => AppSettings()..loadSettings(),
