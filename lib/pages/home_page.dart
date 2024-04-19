@@ -51,8 +51,13 @@ class _HomePageState extends State<HomePage> {
   LocationHandler location = LocationHandler();
   String locationError = '';
 
+  int currentCameraIndex = 0;
+  List<CameraDescription>? cameras;
   late final CameraActionController cameraActionController = CameraActionController();
   CameraController? homePageCameraController;
+  bool isCameraInitialized = false;
+  bool _isControllerDisposed = false;
+
 
   StreamSubscription<CompassEvent>? compassListener;
   // final FirebaseAuthService auth = FirebaseAuthService();
@@ -92,13 +97,60 @@ class _HomePageState extends State<HomePage> {
     cameraActionController.takePhotoWithCamera = (camController) => takePhoto(camController);
   }
 
+  Future<void> flipCamera() async {
+    if (cameras == null || cameras!.isEmpty) {
+      debugPrint("No cameras available.");
+      return;
+    }
+
+    int newCameraIndex = (currentCameraIndex + 1) % cameras!.length;
+    CameraController newController = CameraController(
+      cameras![newCameraIndex],
+      ResolutionPreset.high,
+      enableAudio: false,
+    );
+
+    // Try to initialize the new controller.
+    try {
+      await newController.initialize();
+      setState(() {
+        // Dispose the old controller if initialized.
+        if (homePageCameraController != null && homePageCameraController!.value.isInitialized) {
+          homePageCameraController!.dispose();
+        }
+        // Update the controller and current camera index.
+        homePageCameraController = newController;
+        currentCameraIndex = newCameraIndex;
+        _isControllerDisposed = false; // Reset the flag
+      });
+    } catch (e) {
+      debugPrint("Error initializing camera controller: $e");
+      // Dispose the new controller if initialization fails.
+      newController.dispose();
+    }
+  }
+
+  bool _isDisposing = false;
+
+  Future<void> safeDisposeController() async {
+    if (!_isDisposing && homePageCameraController != null && homePageCameraController!.value.isInitialized) {
+      _isDisposing = true;
+      await homePageCameraController!.dispose();
+      _isDisposing = false;
+    }
+  }
+
   @override
   void dispose() {
     compassListener?.cancel();
     sessionSubscription?.cancel();
+
+    
     convertedSessionID = '';
+    safeDisposeController();
     super.dispose();
   }
+
 
   Future<void> createToken() async {
     debugPrint("Token created");
@@ -109,18 +161,20 @@ class _HomePageState extends State<HomePage> {
     await database.ref().child('Sessions/${auth.user!.uid}').set({'sessionID' : convertedSessionID.toString()});
   }
 
-  
 
-  List<CameraDescription>? cameras;
-  
   Future<void> loadCameras() async {
   try {
     List<CameraDescription> loadedCameras = await availableCameras();
     setState(() {
       cameras = loadedCameras;
+      isCameraInitialized = true;
+      debugPrint("Cameras loaded: ${cameras!.length}");
     });
   } catch (e) {
-    debugPrint(e.toString());
+    debugPrint("Failed to load cameras :$e");
+    setState(() {
+      isCameraInitialized = false;
+    });
   }
 }
 
@@ -230,7 +284,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 onTap: () {
                   // Handle tap
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => RewardsPage()));
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const RewardsPage()));
                 },
               ),
               const Divider(color: Colors.black26), // Divider between ListTiles
@@ -246,7 +300,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 onTap: () {
                   // Handle tap
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => LeaderboardPage()));
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const LeaderboardPage()));
 
                 },
               ),
@@ -262,7 +316,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 onTap: () {
                   // Handle tap
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => SettingsPage()));
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsPage()));
                 },
               ),
               const Divider(color: Colors.black26), // Divider between ListTiles
@@ -296,21 +350,29 @@ class _HomePageState extends State<HomePage> {
 Widget build(BuildContext context) {
   final appSettings = Provider.of<AppSettings>(context, listen: true);
   
+  // Avoid building CameraPreview if the controller has been disposed or not initialized
+    if (!isCameraInitialized || cameras == null || _isControllerDisposed) {
+      debugPrint("Initialization status: Camera initialized = $isCameraInitialized, Cameras available = ${cameras != null}, Controller disposed = $_isControllerDisposed");
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+    );
+  }
+
   if (cameras == null) {
+    debugPrint("Waiting for camera availability");
     return const Scaffold(
       body: Center(child: CircularProgressIndicator()),
-
     );
   }
 
   CameraHandler camera = CameraHandler(
-  cameras: cameras!,
-  onControllerCreated: (controller) {
-    homePageCameraController = controller;
-    cameraActionController.setCameraController(controller);
+    cameras: cameras!,
+    onControllerCreated: (controller) {
+      homePageCameraController = controller;
+      cameraActionController.setCameraController(controller);
+      
     },
   );
-
   if (user != null){
 
     sessionSubscription = database.ref().child('Sessions/${user!.uid}').onValue.listen((event) {
@@ -364,25 +426,30 @@ Widget build(BuildContext context) {
               future: _locationFuture,
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
+                  Position position = snapshot.data!;
+
                   final altitude = appSettings.convertAltitude(snapshot.data!.altitude);
                   final altitudeUnit = appSettings.useEnglishUnits ? "feet" : "meters";
 
-                  String formattedLatitude = appSettings.formatLatitude(snapshot.data!.latitude);
-                  String formattedLongitude = appSettings.formatLongitude(snapshot.data!.longitude);
+                  String coordinatesDisplay; // This will hold the string to be displayed
+                  bool showLabels = appSettings.shouldShowLatLonLabels();
 
-                  
+                  if (appSettings.representationType == AppSettings.utm || appSettings.representationType == AppSettings.mgrs) {
+                    // For UTM or MGRS, we only display once
+                    coordinatesDisplay = appSettings.formatCoordinate(position.latitude, position.longitude, true);
+                  } else {
+                    // For other settings, show both with labels conditionally
+                    String formattedLatitude = appSettings.formatCoordinate(position.latitude, position.longitude, true);
+                    String formattedLongitude = appSettings.formatCoordinate(position.latitude, position.longitude, false);
+                    coordinatesDisplay = (showLabels ? 'LAT: $formattedLatitude\n' : '$formattedLatitude\n') +
+                                        (showLabels ? 'LON: $formattedLongitude' : formattedLongitude);
+                  }
+
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'LAT: $formattedLatitude', // Use formatted latitude
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        'LON: $formattedLongitude', // Use formatted longitude
+                        coordinatesDisplay, // Display the coordinates appropriately
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -503,6 +570,17 @@ Widget build(BuildContext context) {
             cameraActionController.takePhotoWithCamera!(homePageCameraController!);
           },
           child: button(Icons.camera_alt_outlined, Alignment.bottomCenter),
+        ),
+
+        // Camera flip button
+        Positioned(
+          right: 20, // Adjust the position as needed to place it next to the photo capture button
+          bottom: 100,
+          child: FloatingActionButton(
+            onPressed: flipCamera, // Call the flipCamera method
+            backgroundColor: Colors.white,
+            child: const Icon(Icons.flip_camera_ios, color: Colors.black),
+          ),
         ),
         Positioned(
           left: 20,

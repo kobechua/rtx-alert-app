@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import 'package:rtx_alert_app/pages/app_settings.dart';
 import 'package:firebase_core/firebase_core.dart';
 
+
 void pingUser() async {
   FirebaseDatabase database = FirebaseDatabase.instance;
   final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
@@ -20,6 +21,7 @@ void pingUser() async {
 }
 
 void main() async {
+
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp(

@@ -1,16 +1,23 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:proj4dart/proj4dart.dart';
+import 'package:mgrs_dart/mgrs_dart.dart';
 
 class AppSettings extends ChangeNotifier {
   bool _useEnglishUnits = false;
-  // Adding the latitude and longitude representation setting
   static const int decimalDegrees = 0;
   static const int degreesMinutesSeconds = 1;
   static const int degreesDecimalMinutes = 2;
+  static const int utm = 3;
+  static const int mgrs = 4;
   int _representationType = decimalDegrees;
 
-  bool get useEnglishUnits => _useEnglishUnits;
+  AppSettings() {
+    defineProjections();
+    checkProjections();
+  }
 
+  bool get useEnglishUnits => _useEnglishUnits;
   int get representationType => _representationType;
 
   void toggleUnitSystem() {
@@ -38,56 +45,48 @@ class AppSettings extends ChangeNotifier {
     notifyListeners();
   }
 
-  // convert meters to feet
   double convertAltitude(double altitudeInMeters) {
     return _useEnglishUnits ? altitudeInMeters * 3.28084 : altitudeInMeters;
   }
 
-
-  String formatLatitude(double latitude) {
-    return _formatCoordinate(latitude, true); // true for latitude
+  void defineProjections() {
+    Projection.add('EPSG:4326', '+proj=longlat +datum=WGS84 +no_defs');
   }
 
-  String formatLongitude(double longitude) {
-    return _formatCoordinate(longitude, false); // false for longitude
+  void checkProjections() {
+    var wgs84 = Projection.get('EPSG:4326');
+    var utm = Projection.get('EPSG:32617');
+    print('WGS84 Projection: $wgs84');
+    print('UTM Projection: $utm');
   }
 
-  String _formatCoordinate(double coordinate, bool isLatitude) {
+  String formatCoordinate(double latitude, double longitude, bool isLatitude) {
     switch (_representationType) {
       case decimalDegrees:
-        return coordinate.toStringAsFixed(5);
+        return isLatitude ? latitude.toStringAsFixed(5) : longitude.toStringAsFixed(5);
       case degreesMinutesSeconds:
-        return _toDMS(coordinate, isLatitude);
+        return _toDMS(isLatitude ? latitude : longitude, isLatitude);
       case degreesDecimalMinutes:
-        return _toDDM(coordinate);
+        return _toDDM(isLatitude ? latitude : longitude);
+      case utm:
+        return _toUTM(latitude, longitude);
+      case mgrs:
+        return _toMGRS(latitude, longitude);
       default:
-        return coordinate.toStringAsFixed(5);
+        return isLatitude ? latitude.toStringAsFixed(5) : longitude.toStringAsFixed(5);
     }
   }
 
   String _toDMS(double degrees, bool isLatitude) {
-    // Determine the cardinal direction
-    String cardinalDirection = "";
-    if (isLatitude) {
-      cardinalDirection = degrees >= 0 ? "N" : "S";
-    } else {
-      cardinalDirection = degrees >= 0 ? "E" : "W";
-    }
+    int d = degrees.abs().floor();
+    double min = (degrees.abs() - d) * 60;
+    int m = min.floor();
+    double s = (min - m) * 60;
 
-    // Convert degrees to absolute value for calculation
-    degrees = degrees.abs();
-
-    int d = degrees.floor();
-    double minFloat = (degrees - d) * 60;
-    int m = minFloat.floor();
-    double secFloat = (minFloat - m) * 60;
-    // Using round() instead of toInt() to properly handle rounding
-    int s = secFloat.round();
-
-    return "$d°$m'$s\" $cardinalDirection";
+    String seconds = s.toStringAsFixed(4);
+    String cardinal = degrees >= 0 ? (isLatitude ? "N" : "E") : (isLatitude ? "S" : "W");
+    return "$d°$m'$seconds\" $cardinal";
   }
-
-
 
   String _toDDM(double degrees) {
     int d = degrees.truncate();
@@ -95,4 +94,28 @@ class AppSettings extends ChangeNotifier {
     return "$d° ${minutes.toStringAsFixed(3)}'";
   }
 
+  String _toUTM(double latitude, double longitude) {
+    int zone = ((longitude + 180) / 6).floor() + 1;
+    String utmKey = 'EPSG:326${zone < 10 ? '0$zone' : zone.toString()}';
+    Projection.add(utmKey, '+proj=utm +zone=$zone +datum=WGS84 +units=m +no_defs');
+    
+    var wgs84 = Projection.get('EPSG:4326');
+    var utm = Projection.get(utmKey);
+    if (wgs84 == null || utm == null) {
+      return "UTM: Unavailable";
+    }
+    
+    var point = Point(x: longitude, y: latitude);
+    var utmPoint = wgs84.transform(utm, point);
+    return "UTM Zone $zone\nE: ${utmPoint.x.toStringAsFixed(0)}\nN: ${utmPoint.y.toStringAsFixed(0)}";
+  }
+
+  String _toMGRS(double latitude, double longitude) {
+    return "MGRS: ${Mgrs.forward([longitude, latitude], 5)}";
+  }
+
+  bool shouldShowLatLonLabels() {
+    return _representationType == decimalDegrees || _representationType == degreesMinutesSeconds || _representationType == degreesDecimalMinutes;
+  }
+  
 }

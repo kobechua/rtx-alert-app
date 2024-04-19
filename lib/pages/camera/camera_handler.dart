@@ -18,38 +18,40 @@ class CameraHandler extends StatefulWidget {
 class _CameraHandlerState extends State<CameraHandler> {
   late CameraController cameraController;
   bool isCameraInitialized = false;
+  bool _isDisposed = false;
 
   File ? displayedImage;
 
   @override
   void initState() {
     super.initState();
-    startCamera();
+    startCamera(widget.cameras.first);
     widget.onControllerCreated(cameraController);
   }
 
-  Future<void> startCamera() async {
+  Future<void> startCamera(CameraDescription cameraDescription) async {
     try {
-      cameraController = CameraController(
-        widget.cameras[0], 
-        ResolutionPreset.high,
-        enableAudio: false,
-      );
+        cameraController = CameraController(
+            cameraDescription,
+            ResolutionPreset.high,
+            enableAudio: false,
+        );
 
-      await cameraController.initialize();
-      if (!mounted) return;
-
-
-
-      setState(() {
-        isCameraInitialized = true;
-        widget.onControllerCreated(cameraController);
-      });
-
+        await cameraController.initialize();
+        setState(() {
+            isCameraInitialized = true;
+        });
     } catch (e) {
-      debugPrint("An error has occured.");
-    }      
+        debugPrint("Error initializing camera: $e");
+        setState(() {
+            isCameraInitialized = false;
+        });
+        if (cameraController.value.isInitialized) {
+            cameraController.dispose();
+        }
+    }
   }
+
 
   Future<void> capturePhoto() async {
     try {
@@ -66,26 +68,37 @@ class _CameraHandlerState extends State<CameraHandler> {
 
   @override
   void dispose() {
-    super.dispose();
-    cameraController.dispose();
+    // Check if the controller is initialized before attempting to dispose it
+    if (cameraController.value.isInitialized) {
+        cameraController.dispose();
+        _isDisposed = true;  // Mark as disposed if you need to track this state
+    }
+    super.dispose();  // It's sufficient to call super.dispose() once at the end
   }
 
-  @override
+
+  
+
+@override
   Widget build(BuildContext context) {
-    if (!isCameraInitialized) {
+    if (!isCameraInitialized || _isDisposed) {
       return const Center(child: CircularProgressIndicator());
+    }
+
+    // Ensure controller is still initialized when building the preview
+    if (!cameraController.value.isInitialized) {
+      return const Text("Camera initialization failed");
     }
 
     return CameraPreview(cameraController);
   }
 }
 
-
 class CameraActionController {
   Function()? takePhoto;
   Future<void> Function()? pickExistingPhoto;
   Future<void> Function(CameraController)? takePhotoWithCamera;
-  CameraController? ccontroller;
+  CameraController? controller;
 
   void capturePhoto() {
     takePhoto?.call();
@@ -103,7 +116,26 @@ class CameraActionController {
     }
   }
 
-  void setCameraController(CameraController controller){
-    ccontroller = controller;
+  void setCameraController(CameraController newController){
+    controller = newController;
+  }
+
+  // Method to switch the camera
+  Future<void> switchCamera(CameraDescription newCamera) async {
+    if (controller != null) {
+      await controller!.dispose(); // Dispose the current controller
+    }
+    controller = CameraController(
+      newCamera,
+      ResolutionPreset.high,
+      enableAudio: false,
+    );
+
+    try {
+      await controller!.initialize(); // Initialize the new controller
+      // If there is a specific function or callback in your UI that needs to be called after switching, call it here
+    } catch (e) {
+      print("Failed to switch cameras: $e");
+    }
   }
 }
