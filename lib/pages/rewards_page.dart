@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -10,75 +12,70 @@ class RewardsPage extends StatefulWidget {
 }
 
 class _RewardsPageState extends State<RewardsPage> {
-  Future<int>? _userPointsFuture;
+  List<String> _claimedBadges = [];
+  int _userPoints = 0;
 
   @override
-  void initState () {
+  void initState() {
     super.initState();
-    _userPointsFuture = getUserPoints();
+    _fetchUserData();
   }
-  
-  // Function to fetch the user's points from Firebase
-  Future<int> getUserPoints() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    final snapshot = await FirebaseDatabase.instance.ref('UserData/$uid/points').get();
-    if (snapshot.exists) {
-      return int.parse(snapshot.value.toString());
-    } else {
-      return 0; // Default to 0 if points are not found
-    }
-  }
-  // Updated dummy data for rewards with "points" field
-  final List<Map<String, dynamic>> badges = [
-    {
-      "title": "RTX Bronze Badge",
-      "description": "A commendable achievement for dedicated newcomers.",
-      "image": "lib/images/bronzebadge.png",
-      "points": 5000,
-    },
-    {
-      "title": "RTX Silver Badge",
-      "description": "A mark of consistency and progress.",
-      "image": "lib/images/silverbadge.png",
-      "points": 10000,
-    },
-    {
-      "title": "RTX Gold Badge",
-      "description": "A symbol of exceptional dedication and skill.",
-      "image": "lib/images/goldbadge.png",
-      "points": 15000,
-    },
-    {
-      "title": "Jay's Badge",
-      "description": "The pinnacle of achievement, reserved for true visionaries.",
-      "image": "lib/images/diamondbadge.png",
-      "points": 20000,
-    },
-  ];
 
-  final List<Map<String, dynamic>> otherRewards = [
-    {
-      "title": "RTX Gift Card",
-      "description": "Redeemable gift card for RTX goodies.",
-      "image": "lib/images/cargiftcard.png",
-      "points": 25000,
-    },
-    {
-      "title": "Raytheon T-Shirt",
-      "description": "Show off your style!",
-      "image": "lib/images/carshirt.png",
-      "points": 30000,
-    },
-    
-  ];
-
-  void updateUserPoints() {
+  Future<void> _fetchUserData() async {
+    final data = await getUserData();
     setState(() {
-      _userPointsFuture = getUserPoints();
+      _userPoints = data['points'];
+      _claimedBadges = [];
+      if (data['badges'] != null) {
+        for (var item in data['badges']) {
+          if (item is String) {
+            _claimedBadges.add(item);
+          } else {
+            // Optionally handle unexpected data types, log them, or ignore
+            debugPrint('Unexpected data type in badges list: ${item.runtimeType}');
+          }
+        }
+      }
     });
   }
 
-  void showConfirmationDialog(int requiredPoints, String rewardTitle) {
+  Future<Map<String, dynamic>> getUserData() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final snapshot = await FirebaseDatabase.instance.ref('UserData/$uid').get();
+    if (snapshot.exists) {
+      var points = snapshot.child('points').value;
+      var badgesSnapshot = snapshot.child('badges').value;
+    
+      // Initialize points
+      int parsedPoints = 0;
+      if (points != null) {
+        parsedPoints = int.tryParse(points.toString()) ?? 0;
+      }
+
+      // Prepare the badges list
+      List<String> badgesList = [];
+      if (badgesSnapshot != null && badgesSnapshot is List<dynamic>) {
+        badgesList = badgesSnapshot.cast<String>();
+      }
+
+      return {
+        'points': parsedPoints,
+        'badges': badgesList,
+      };
+    } else {
+      return {'points': 0, 'badges': []}; // Default values if user data not found
+    }
+  }
+
+  void attemptClaimReward(int requiredPoints, String rewardTitle, bool isBadge) {
+    if (_userPoints >= requiredPoints) {
+      showConfirmationDialog(requiredPoints, rewardTitle, isBadge);
+    } else {
+      showNotEnoughPointsDialog();
+    }
+  }
+
+  void showConfirmationDialog(int requiredPoints, String rewardTitle, bool isBadge) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -93,29 +90,11 @@ class _RewardsPageState extends State<RewardsPage> {
             TextButton(
               child: const Text("Yes"),
               onPressed: () async {
-                Navigator.of(context).pop(); // Close the confirmation dialog immediately.
-                final userPoints = await getUserPoints();
-                if (userPoints >= requiredPoints) {
-                  final String? uid = FirebaseAuth.instance.currentUser?.uid;
-                  if (uid != null) {
-                    // Subtract the required points for the reward and update in Firebase.
-                    int newPoints = userPoints - requiredPoints;
-                    try {
-                      await FirebaseDatabase.instance.ref('UserData/$uid/points').set(newPoints);
-                      updateUserPoints();
-                      if (!mounted) return;
-                      // Show success dialog only after successful update.
-                      
-                      showSuccessDialog(rewardTitle);
-                    } catch (e) {
-                      // Handle any errors that occur during the update
-                      print("Error updating points: $e");
-                      // Optionally, show an error dialog to the user
-                    }
-                  }
+                Navigator.of(context).pop();
+                bool result = await claimBadge(rewardTitle, requiredPoints, isBadge);
+                if (result) {
+                  showSuccessDialog(rewardTitle);
                 } else {
-                  if (!mounted) return;
-                  // Show not enough points dialog.
                   showNotEnoughPointsDialog();
                 }
               },
@@ -127,68 +106,124 @@ class _RewardsPageState extends State<RewardsPage> {
   }
 
 
+  // Method to claim a badge
+// Method to claim a reward. It now takes an additional boolean parameter isBadge
+Future<bool> claimBadge(String badgeTitle, int points, bool isBadge) async {
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+  if (uid == null) return false;
 
-void attemptClaimReward(int requiredPoints, String rewardTitle) {
-  getUserPoints().then((userPoints) {
-    if (!mounted) return;
+  final ref = FirebaseDatabase.instance.ref('UserData/$uid');
 
-    if (userPoints >= requiredPoints) {
-      // User has enough points; ask for confirmation to claim the reward.
-      showConfirmationDialog(requiredPoints, rewardTitle);
-    } else {
-      // User does not have enough points; show a dialog informing them.
-      showNotEnoughPointsDialog();
-    }
-  });
-}
-
-
-
-void showSuccessDialog(String rewardTitle) {
-  if (!mounted) return;
+  // Deduct points
+  await ref.child('points').set(_userPoints - points);
   
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: const Text("Reward Claimed!"),
-        content: Text("You have successfully claimed the $rewardTitle."),
-        actions: <Widget>[
-          TextButton(
-            child: const Text("OK"),
-            onPressed: () {
-              Navigator.of(context).pop(); // Close the success dialog.
-            },
-          ),
-        ],
-      );
-    },
-  );
+  // If it's a badge, add it to the list and update Firebase
+  if (isBadge) {
+    final snapshot = await ref.child('badges').get();
+    List<String> currentBadges = snapshot.exists && snapshot.value != null
+        ? List<String>.from(snapshot.value as List<dynamic>)
+        : [];
+
+    if (currentBadges.contains(badgeTitle)) return false; // Badge already claimed
+
+    currentBadges.add(badgeTitle);
+    await ref.child('badges').set(currentBadges); // Update Firebase with the new list of badges
+  }
+  
+  // Refresh local user data
+  _fetchUserData();
+  
+  return true; // Indicates success
 }
 
-void showNotEnoughPointsDialog() {
-  if (!mounted) return;
+  
 
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: const Text("Not Enough Points"),
-        content: const Text("You do not have enough points to claim this reward."),
-        actions: <Widget>[
-          TextButton(
-            child: const Text("OK"),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ],
-      );
-    },
+  void showSuccessDialog(String rewardTitle) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Reward Claimed!"),
+          content: Text("You have successfully claimed the $rewardTitle."),
+          actions: <Widget>[
+            TextButton(
+              child: const Text("OK"),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void showNotEnoughPointsDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Not Enough Points"),
+          content: const Text("You do not have enough points to claim this reward."),
+          actions: <Widget>[
+            TextButton(
+              child: const Text("OK"),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+Widget _buildBadgeRow(Map<String, dynamic> reward, bool isBadge) {
+  bool isClaimed = _claimedBadges.contains(reward['title']);
+  bool isClaimable = false;
+
+  if (isBadge) {
+    int lastClaimedIndex = _claimedBadges.isNotEmpty
+        ? badges.indexWhere((b) => b['title'] == _claimedBadges.last)
+        : -1;
+    int currentBadgeIndex = badges.indexWhere((b) => b['title'] == reward['title']);
+    isClaimable = (lastClaimedIndex != -1 && currentBadgeIndex == lastClaimedIndex + 1) ||
+                  (lastClaimedIndex == -1 && currentBadgeIndex == 0);
+  } else {
+    isClaimable = true;  // Other rewards are always claimable
+  }
+
+  return Card(
+    child: ListTile(
+      leading: Image.asset(reward['image'], fit: BoxFit.cover, width: 40),
+      title: Text(reward['title'], style: const TextStyle(fontSize: 14)),
+      subtitle: Text(reward['description'], maxLines: 2, overflow: TextOverflow.ellipsis),
+      trailing: Container(
+        width: 100,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text('${reward['points']} Points', style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            if (isClaimed)
+              const Text('Claimed', style: TextStyle(fontSize: 12))
+            else if (isClaimable)
+              Flexible(
+                child: ElevatedButton(
+                  onPressed: () => attemptClaimReward(reward['points'], reward['title'], isBadge),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    textStyle: const TextStyle(fontSize: 10),  // Adjust font size if necessary
+                    minimumSize: const Size(60, 30),  // Check if reducing size helps
+                  ),
+                  child: const Text('Claim'),
+                ),
+              )
+            else
+              const Text('Locked', style: TextStyle(fontSize: 12, color: Colors.grey)),
+          ],
+        ),
+      ),
+    ),
   );
 }
-
-
-
-
 
 
   @override
@@ -208,43 +243,27 @@ void showNotEnoughPointsDialog() {
         ),
         backgroundColor: Colors.black87,
         actions: <Widget>[
-          FutureBuilder<int>(
-            future: _userPointsFuture,
-            builder: (BuildContext context, AsyncSnapshot<int> snapshot) {
-              if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Center(
-                    child: Text(
-                      "${snapshot.data} Points",
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                );
-              } else {
-                // Show loading indicator or placeholder while data is loading
-                return const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: Center(
-                    child: CircularProgressIndicator(color: Colors.white),
-                  ),
-                );
-              }
-            },
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16), // Consider reducing horizontal padding
+            child: Center(
+              child: Text(
+                "$_userPoints Points",
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
           ),
         ],
       ),
-      
-      backgroundColor: Colors.grey[900], // Dark grey background
-      body: SingleChildScrollView(
+      backgroundColor: Colors.grey[900],
+      body: SingleChildScrollView( // Ensure this is here
         child: Column(
           children: [
             const Padding(
-              padding: EdgeInsets.all(8.0),
+              padding: EdgeInsets.all(8.0), // Check padding here, reduce if necessary
               child: Text(
                 "- BADGES -",
                 style: TextStyle(
@@ -254,84 +273,16 @@ void showNotEnoughPointsDialog() {
                 ),
               ),
             ),
-            SizedBox(
-              height: MediaQuery.of(context).size.height * 0.55, // Adjust the height as needed
-              child: ListView.builder(
-                physics: const NeverScrollableScrollPhysics(),
-                shrinkWrap: true, 
-                itemCount: badges.length,
-                itemBuilder: (context, index) {
-                  final reward = badges[index];
-                  return Card(
-                    margin: const EdgeInsets.all(8.0).copyWith(
-                      bottom: index == badges.length - 1 ? 0 : 8.0, //remove bottom padding of the last item
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Row(
-                        children: [
-                          Image.asset(
-                            reward['image'],
-                            width: 60,
-                            height: 60,
-                            fit: BoxFit.cover,
-                          ),
-                          Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    reward['title'],
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(reward['description']),
-                                ],
-                              ),
-                            ),
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                "${reward['points']} Points", // Convert points to string for display
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black54,
-                                ),
-                              ),
-
-                              ElevatedButton(
-                                onPressed: () => attemptClaimReward(reward['points'], reward['title']),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.black87, // Button color
-                                ),
-                                child: const Text(
-                                  'Claim',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(), // To handle scrolling within a scrollable view
+              itemCount: badges.length,
+              itemBuilder: (context, index) => _buildBadgeRow(badges[index], true),
             ),
-             const Padding(
-              padding: EdgeInsets.all(8.0),
+            const Padding(
+              padding: EdgeInsets.all(8.0), // Check padding here, reduce if necessary
               child: Text(
-                "- OTHER -",
+                "- OTHER REWARDS -",
                 style: TextStyle(
                   fontSize: 28.0,
                   fontWeight: FontWeight.bold,
@@ -339,83 +290,57 @@ void showNotEnoughPointsDialog() {
                 ),
               ),
             ),
-            SizedBox(
-              height: MediaQuery.of(context).size.height * 0.3, // Adjust the height as needed
-              child: ListView.builder(
-                physics: const NeverScrollableScrollPhysics(),
-                shrinkWrap: true, 
-                itemCount: otherRewards.length,
-                itemBuilder: (context, index) {
-                  final reward = otherRewards[index];
-                  return Card(
-                    margin: const EdgeInsets.all(8.0).copyWith(
-                      bottom: index == otherRewards.length - 1 ? 0 : 8.0, //remove bottom padding of the last item
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Row(
-                        children: [
-                          Image.asset(
-                            reward['image'],
-                            width: 60,
-                            height: 60,
-                            fit: BoxFit.cover,
-                          ),
-                          Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    reward['title'],
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(reward['description']),
-                                ],
-                              ),
-                            ),
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                "${reward['points']} Points", // Convert points to string for display
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black54,
-                                ),
-                              ),
-
-                              ElevatedButton(
-                                onPressed: () => attemptClaimReward(reward['points'], reward['title']),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.black87, // Button color
-                                ),
-                                child: const Text(
-                                  'Claim',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(), // To handle scrolling within a scrollable view
+              itemCount: otherRewards.length,
+              itemBuilder: (context, index) => _buildBadgeRow(otherRewards[index], false),
             ),
           ],
         ),
       ),
     );
   }
+
+final List<Map<String, dynamic>> badges = [
+  {
+    "title": "RTX Bronze Badge",
+    "description": "A commendable achievement for dedicated newcomers.",
+    "image": "lib/images/bronzebadge.png",
+    "points": 5000,
+  },
+  {
+    "title": "RTX Silver Badge",
+    "description": "A mark of consistency and progress.",
+    "image": "lib/images/silverbadge.png",
+    "points": 10000,
+  },
+  {
+    "title": "RTX Gold Badge",
+    "description": "A symbol of exceptional dedication and skill.",
+    "image": "lib/images/goldbadge.png",
+    "points": 15000,
+  },
+  {
+    "title": "Jay's Badge",
+    "description": "The pinnacle of achievement, reserved for true visionaries.",
+    "image": "lib/images/diamondbadge.png",
+    "points": 20000,
+  },
+];
+
+final List<Map<String, dynamic>> otherRewards = [
+  {
+    "title": "RTX Gift Card",
+    "description": "Redeemable gift card for RTX goodies.",
+    "image": "lib/images/cargiftcard.png",
+    "points": 25000,
+  },
+  {
+    "title": "Raytheon T-Shirt",
+    "description": "Show off your style!",
+    "image": "lib/images/carshirt.png",
+    "points": 30000,
+  },
+];
 }
