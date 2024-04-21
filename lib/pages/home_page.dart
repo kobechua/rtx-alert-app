@@ -1,8 +1,6 @@
-// import 'package:cloud_firestore/cloud_firestore.dart'; 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-// import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -10,27 +8,27 @@ import 'package:latlong2/latlong.dart';
 import 'dart:async';
 import 'package:crypto/crypto.dart';
 import 'dart:convert'; 
-
 import 'package:flutter_compass/flutter_compass.dart';
+
 import 'package:rtx_alert_app/pages/menu/app_settings.dart';
 import 'package:rtx_alert_app/pages/camera/camera_handler.dart';
 import 'package:rtx_alert_app/pages/menu/leaderboards_page.dart';
 import 'package:rtx_alert_app/pages/menu/submissions.dart';
 import 'package:rtx_alert_app/pages/menu/rewards_page.dart';
 import 'package:rtx_alert_app/services/auth.dart';
-
 import 'package:rtx_alert_app/services/location.dart';
 
 import 'package:camera/camera.dart';
 import 'package:rtx_alert_app/pages/camera/preview.dart';
 import 'package:rtx_alert_app/pages/menu/settings_page.dart';
-// import 'package:rtx_alert_app/services/auth.dart';
+
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
 
 import 'package:rtx_alert_app/services/session_listener.dart';
 
+import 'package:tflite/tflite.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -61,6 +59,8 @@ class _HomePageState extends State<HomePage> {
   Future<Position>? _locationFuture;
   static bool _locationInitialized = false;
   bool _isMapFullScreen = false;
+  
+  int imageCount = 0;
 
   double? _azimuth;
   double normalizeAzimuth(double azimuth) {
@@ -75,6 +75,7 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     createToken();
     loadCameras();
+    loadModel();
     user = auth.auth.currentUser;
     initializeFirebaseMessaging();
     _locationFuture = location.getCurrentLocation();
@@ -94,11 +95,13 @@ class _HomePageState extends State<HomePage> {
   }
 
   @override
-  void dispose() {
+  void dispose() async {
     compassListener?.cancel();
     sessionSubscription?.cancel();
     convertedSessionID = '';
+    
     super.dispose();
+    await Tflite.close();
   }
 
     void initializeFirebaseMessaging() {
@@ -143,7 +146,36 @@ class _HomePageState extends State<HomePage> {
     await database.ref().child('Sessions/${auth.user!.uid}').set({'sessionID' : convertedSessionID.toString()});
   }
 
-  
+  Future<void> loadModel() async {
+
+    await Tflite.loadModel(
+      model: "assets/ssd_mobilenet.tflite",
+      labels: "assets/ssd_mobilenet.txt",
+      numThreads: 1, // defaults to 1
+      isAsset: true, // defaults to true, set to false to load resources outside assets
+      useGpuDelegate: false // defaults to false, set to true to use GPU delegate
+    );
+  }
+
+  Future<List?> detectObjects(CameraImage img) async {
+    var recognitions = await Tflite.detectObjectOnFrame(
+      bytesList: img.planes.map((plane) => plane.bytes).toList(), // CameraImage bytes
+      model: "SSDMobileNet",
+      imageHeight: img.height,
+      imageWidth: img.width,
+      imageMean: 127.5, // values depend on the model
+      imageStd: 127.5,
+      numResultsPerClass: 1,
+    );
+
+    if (recognitions![0]['confidenceInClass'] > 0.5){
+      debugPrint(recognitions[0].toString());
+    }
+    
+    return recognitions;
+}
+
+
 
   List<CameraDescription>? cameras;
   
@@ -342,6 +374,13 @@ Widget build(BuildContext context) {
   onControllerCreated: (controller) {
     homePageCameraController = controller;
     cameraActionController.setCameraController(controller);
+    controller.startImageStream((image) {
+      imageCount++;
+      if (imageCount % 30 == 0) {
+        imageCount = 0;
+        detectObjects(image);
+      }
+     });
     },
   );
 
@@ -365,7 +404,7 @@ Widget build(BuildContext context) {
 }
 
     return SessionTimeOutListener(
-      duration: const Duration(minutes: 1),
+      duration: const Duration(minutes: 10),
       onTimeOut: () async {
         debugPrint("SIGNOUTTIMER");
         await auth.signOut();

@@ -18,7 +18,6 @@ import 'package:rtx_alert_app/pages/menu/app_settings.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:rtx_alert_app/services/notifications.dart';
 
-
 void pingUser() async {
   DateTime datetime = DateTime.now();
   debugPrint("Pinged User: $datetime");
@@ -40,15 +39,6 @@ void callbackDispatcher() {
  }
  return Future.value(true);
  });
-}
-
-void schedulePeriodicTask() {
- Workmanager().registerPeriodicTask(
- 'myPeriodicTask',
- 'pingUser',
- frequency: const Duration(minutes: 15),
- inputData: <String, dynamic>{'key': 'value'},
- );
 }
 
 
@@ -76,18 +66,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     pingUser();
-    // schedulePeriodicTask();
-    // return SessionTimeOutListener(
-    //   duration: const Duration(minutes : 10), onTimeOut: pingUser, onWarning: pingUser,
-    //     child:
-    //     ChangeNotifierProvider(
-    //       create: (context) => AppSettings()..loadSettings(),
-    //       child: const MaterialApp(
-    //         home: GreetingPage(),
-    //       ),
-    //     ), 
-    // );
-    Timer(const Duration(minutes: 2), () {pingUser();});
+
+    // Timer(const Duration(minutes: 2), () {pingUser();});
     return ChangeNotifierProvider(
           create: (context) => AppSettings()..loadSettings(),
           child: const MaterialApp(
