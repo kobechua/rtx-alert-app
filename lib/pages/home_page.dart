@@ -82,9 +82,8 @@ class _HomePageState extends State<HomePage> {
     // convertedSessionID = auth.convertedSessionID;
     loadCameras();
     user = auth.auth.currentUser;
-    
     _locationFuture = location.getCurrentLocation();
-
+    flipCamera();
     compassListener = FlutterCompass.events!.listen((CompassEvent event) { 
       setState(() {
         _azimuth = normalizeAzimuth(event.heading ?? 0);  //Normalize azimuth value
@@ -109,7 +108,6 @@ class _HomePageState extends State<HomePage> {
     convertedSessionID = '';
     super.dispose();
   }
-
 
   Future<void> createToken() async {
     debugPrint("Token created");
@@ -185,6 +183,8 @@ void flipCamera() async {
       cameras = loadedCameras;
       isCameraInitialized = true;
       debugPrint("Cameras loaded: ${cameras!.length}");
+      homePageCameraController = CameraController(cameras![0], ResolutionPreset.high, enableAudio: false);
+      homePageCameraController?.initialize();
     });
   } catch (e) {
     debugPrint("Failed to load cameras :$e");
@@ -381,14 +381,7 @@ Widget build(BuildContext context) {
     );
   }
 
-  CameraHandler camera = CameraHandler(
-    cameras: cameras!,
-    onControllerCreated: (controller) {
-      homePageCameraController = controller;
-      cameraActionController.setCameraController(controller);
-      
-    },
-  );
+
   if (user != null){
 
     sessionSubscription = database.ref().child('Sessions/${user!.uid}').onValue.listen((event) {
@@ -421,8 +414,8 @@ Widget build(BuildContext context) {
       child: Scaffold(
     body: Stack(
       children: [
-        if (cameras != null)
-          camera,
+        if (homePageCameraController != null && homePageCameraController!.value.isInitialized)
+          CameraPreview(homePageCameraController!),
 
 /// WIDGETS FOR THE LOCATION DATA ON THE TOP RIGHT OF THE SCREEN
         Positioned(
