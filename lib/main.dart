@@ -3,6 +3,7 @@ import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:rtx_alert_app/firebase_options.dart';
 
 import 'package:firebase_database/firebase_database.dart';
@@ -24,10 +25,11 @@ void pingUser() async {
   FirebaseDatabase database = FirebaseDatabase.instance;
   
   await FirebaseMessaging.instance.requestPermission();
+
   final position = LocationHandler();
-  position.getCurrentLocation();
+  Position pos = await position.getCurrentLocation();
   final fcmToken = await FirebaseMessaging.instance.getToken();
-  database.ref().child('Locations/$fcmToken').set({'last_location' : {'latitude': position.latitude, 'longitude': position.longitude}, 'timestamp': datetime.toString()});
+  database.ref().child('Locations/$fcmToken').set({'last_location' : {'latitude': pos.latitude, 'longitude': pos.longitude}, 'timestamp': datetime.toString()});
 }
 
 void callbackDispatcher() {
