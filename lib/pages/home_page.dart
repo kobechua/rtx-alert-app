@@ -16,8 +16,8 @@ import 'package:rtx_alert_app/pages/camera/camera_handler.dart';
 import 'package:rtx_alert_app/pages/leaderboards_page.dart';
 import 'package:rtx_alert_app/pages/menu/submissions.dart';
 import 'package:rtx_alert_app/pages/rewards_page.dart';
-import 'package:rtx_alert_app/services/auth.dart';
 
+import 'package:rtx_alert_app/services/auth.dart';
 import 'package:rtx_alert_app/services/location.dart';
 
 import 'package:camera/camera.dart';
@@ -58,6 +58,8 @@ class _HomePageState extends State<HomePage> {
   bool isCameraInitialized = false;
   bool _isControllerDisposed = false;
 
+  bool isSwitchingCameras = false;
+
 
   StreamSubscription<CompassEvent>? compassListener;
   // final FirebaseAuthService auth = FirebaseAuthService();
@@ -80,9 +82,8 @@ class _HomePageState extends State<HomePage> {
     // convertedSessionID = auth.convertedSessionID;
     loadCameras();
     user = auth.auth.currentUser;
-    
     _locationFuture = location.getCurrentLocation();
-
+    flipCamera();
     compassListener = FlutterCompass.events!.listen((CompassEvent event) { 
       setState(() {
         _azimuth = normalizeAzimuth(event.heading ?? 0);  //Normalize azimuth value
@@ -96,49 +97,7 @@ class _HomePageState extends State<HomePage> {
     cameraActionController.pickExistingPhoto = pickExistingPhoto;
     cameraActionController.takePhotoWithCamera = (camController) => takePhoto(camController);
   }
-
-  Future<void> flipCamera() async {
-    if (cameras == null || cameras!.isEmpty) {
-      debugPrint("No cameras available.");
-      return;
-    }
-
-    int newCameraIndex = (currentCameraIndex + 1) % cameras!.length;
-    CameraController newController = CameraController(
-      cameras![newCameraIndex],
-      ResolutionPreset.high,
-      enableAudio: false,
-    );
-
-    // Try to initialize the new controller.
-    try {
-      await newController.initialize();
-      setState(() {
-        // Dispose the old controller if initialized.
-        if (homePageCameraController != null && homePageCameraController!.value.isInitialized) {
-          homePageCameraController!.dispose();
-        }
-        // Update the controller and current camera index.
-        homePageCameraController = newController;
-        currentCameraIndex = newCameraIndex;
-        _isControllerDisposed = false; // Reset the flag
-      });
-    } catch (e) {
-      debugPrint("Error initializing camera controller: $e");
-      // Dispose the new controller if initialization fails.
-      newController.dispose();
-    }
-  }
-
-  bool _isDisposing = false;
-
-  Future<void> safeDisposeController() async {
-    if (!_isDisposing && homePageCameraController != null && homePageCameraController!.value.isInitialized) {
-      _isDisposing = true;
-      await homePageCameraController!.dispose();
-      _isDisposing = false;
-    }
-  }
+  
 
   @override
   void dispose() {
@@ -147,10 +106,8 @@ class _HomePageState extends State<HomePage> {
 
     
     convertedSessionID = '';
-    safeDisposeController();
     super.dispose();
   }
-
 
   Future<void> createToken() async {
     debugPrint("Token created");
@@ -161,6 +118,63 @@ class _HomePageState extends State<HomePage> {
     await database.ref().child('Sessions/${auth.user!.uid}').set({'sessionID' : convertedSessionID.toString()});
   }
 
+void flipCamera() async {
+  debugPrint("Attempting to flip camera...");
+  
+  if (cameras == null || cameras!.isEmpty || isSwitchingCameras) {
+    debugPrint("Either no cameras are available or a switch is already in progress.");
+    return;
+  }
+
+  debugPrint("Available cameras ${cameras.toString()}.");
+
+  isSwitchingCameras = true;
+  setState(() {
+    _isControllerDisposed = true;
+  });
+
+  if (homePageCameraController != null && homePageCameraController!.value.isInitialized) {
+    debugPrint("Disposing current camera controller...");
+    await homePageCameraController!.dispose();
+    setState(() {
+        _isControllerDisposed = true; // Set to true immediately after dispose
+    });
+    debugPrint("Current camera controller disposed.");
+  }
+
+  // Update the camera index
+  currentCameraIndex = (currentCameraIndex + 1) % cameras!.length;
+  
+  // Attempt to initialize the new camera
+  CameraController newController = CameraController(
+    cameras![currentCameraIndex],
+    ResolutionPreset.high,
+    enableAudio: false,
+    imageFormatGroup: ImageFormatGroup.jpeg
+  );
+
+  debugPrint("Initializing new camera controller...");
+
+  try {
+    await newController.initialize();
+    debugPrint("New camera controller initialized.");
+
+    if (!mounted) return;
+    setState(() {
+      homePageCameraController = newController;
+      _isControllerDisposed = false;
+      isSwitchingCameras = false;
+    });
+
+  } catch (e) {
+    debugPrint("Failed to initialize the camera controller: $e");
+    setState(() {
+      _isControllerDisposed = true;
+      isSwitchingCameras = false;
+    });
+  }
+}
+
 
   Future<void> loadCameras() async {
   try {
@@ -169,6 +183,8 @@ class _HomePageState extends State<HomePage> {
       cameras = loadedCameras;
       isCameraInitialized = true;
       debugPrint("Cameras loaded: ${cameras!.length}");
+      homePageCameraController = CameraController(cameras![0], ResolutionPreset.high, enableAudio: false);
+      homePageCameraController?.initialize();
     });
   } catch (e) {
     debugPrint("Failed to load cameras :$e");
@@ -365,14 +381,7 @@ Widget build(BuildContext context) {
     );
   }
 
-  CameraHandler camera = CameraHandler(
-    cameras: cameras!,
-    onControllerCreated: (controller) {
-      homePageCameraController = controller;
-      cameraActionController.setCameraController(controller);
-      
-    },
-  );
+
   if (user != null){
 
     sessionSubscription = database.ref().child('Sessions/${user!.uid}').onValue.listen((event) {
@@ -380,9 +389,6 @@ Widget build(BuildContext context) {
     if (snapshot.value is Map){
       Map<dynamic, dynamic> valueMap = snapshot.value as Map<dynamic, dynamic>;
       String storedSessionID = valueMap['sessionID'];
-      debugPrint('storedSessionID: $storedSessionID');
-      debugPrint('convertedSessionID: $convertedSessionID');
-      debugPrint('');
 
       if (storedSessionID != convertedSessionID && convertedSessionID != ''){
 
@@ -396,7 +402,7 @@ Widget build(BuildContext context) {
 }
 
     return SessionTimeOutListener(
-      duration: const Duration(minutes: 1),
+      duration: const Duration(minutes: 5),
       onTimeOut: () async {
         debugPrint("SIGNOUTTIMER");
         await auth.signOut();
@@ -408,8 +414,8 @@ Widget build(BuildContext context) {
       child: Scaffold(
     body: Stack(
       children: [
-        if (cameras != null)
-          camera,
+        if (homePageCameraController != null && homePageCameraController!.value.isInitialized)
+          CameraPreview(homePageCameraController!),
 
 /// WIDGETS FOR THE LOCATION DATA ON THE TOP RIGHT OF THE SCREEN
         Positioned(
@@ -498,61 +504,75 @@ Widget build(BuildContext context) {
 
               final position = snapshot.data!;
               final center = LatLng(position.latitude, position.longitude);
-
-             
                 
-                return Stack(
-                  children: [ 
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      width: _isMapFullScreen ? MediaQuery.of(context).size.width : 100,
-                      height: _isMapFullScreen ? MediaQuery.of(context).size.width : 100,
-                      child: ClipOval(
-                        child: Stack(
-                          children: [
-                            FlutterMap(
-                              options: MapOptions(
-                                initialCenter: center,
-                                initialZoom: _isMapFullScreen ? 5.0 : 13.0,
-                                interactionOptions: const InteractionOptions(
-                                  flags: InteractiveFlag.none,
-                                ),
-                              ),
+                return StreamBuilder<CompassEvent>(
+                  stream: FlutterCompass.events,
+                  builder: (context, compassSnapshot) {
+                    if (!compassSnapshot.hasData) {
+                      return const CircularProgressIndicator();
+                    }
+
+                    // Compass heading
+                    final double heading = compassSnapshot.data!.heading ?? 0;
+                    final double headingRadians = heading * (pi/180);
+
+                    return Stack(
+                      children: [ 
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          width: _isMapFullScreen ? MediaQuery.of(context).size.width : 100,
+                          height: _isMapFullScreen ? MediaQuery.of(context).size.width : 100,
+                          child: ClipOval(
+                            child: Stack(
                               children: [
-                                TileLayer(
-                                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                                  subdomains: const ['a', 'b', 'c'],
-                                ),
-                                MarkerLayer(
-                                  markers: [
-                                    Marker(
-                                      width: 50.0,
-                                      height: 50.0,
-                                      point: center,
-                                      child: const Icon(Icons.location_on, size: 35.0, color: Colors.red,),
+                                FlutterMap(
+                                  options: MapOptions(
+                                    initialCenter: center,
+                                    initialZoom: _isMapFullScreen ? 5.0 : 13.0,
+                                    interactionOptions: const InteractionOptions(
+                                      flags: InteractiveFlag.none,
+                                    ),
+                                  ),
+                                  children: [
+                                    TileLayer(
+                                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                      subdomains: const ['a', 'b', 'c'],
+                                    ),
+                                    MarkerLayer(
+                                      markers: [
+                                        Marker(
+                                          width: 60.0,
+                                          height: 60.0,
+                                          point: center,
+                                          child: Transform.rotate(
+                                            angle: headingRadians,
+                                            child: const Icon(Icons.navigation, size: 30, color: Colors.red),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
+                                ClipOval(
+                                  child: Material(
+                                    color: Colors.transparent, // Keep the overlay transparent
+                                    child: InkWell(
+                                      onTap: () {
+                                        setState(() {
+                                          _isMapFullScreen = !_isMapFullScreen;
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
-                            ClipOval(
-                              child: Material(
-                                color: Colors.transparent, // Keep the overlay transparent
-                                child: InkWell(
-                                  onTap: () {
-                                    setState(() {
-                                      _isMapFullScreen = !_isMapFullScreen;
-                                    });
-                                  },
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ),
-                    
-                  ],
+                        
+                      ],
+                    );
+                  }
                 );
                 
               

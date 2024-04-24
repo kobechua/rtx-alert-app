@@ -96,7 +96,9 @@ class AppSettings extends ChangeNotifier {
 
   String _toUTM(double latitude, double longitude) {
     int zone = ((longitude + 180) / 6).floor() + 1;
+    String latBand = _getLatBand(latitude);
     String utmKey = 'EPSG:326${zone < 10 ? '0$zone' : zone.toString()}';
+    
     Projection.add(utmKey, '+proj=utm +zone=$zone +datum=WGS84 +units=m +no_defs');
     
     var wgs84 = Projection.get('EPSG:4326');
@@ -107,12 +109,34 @@ class AppSettings extends ChangeNotifier {
     
     var point = Point(x: longitude, y: latitude);
     var utmPoint = wgs84.transform(utm, point);
-    return "UTM Zone $zone\nE: ${utmPoint.x.toStringAsFixed(0)}\nN: ${utmPoint.y.toStringAsFixed(0)}";
+    return "UTM Zone $zone$latBand\nE: ${utmPoint.x.toStringAsFixed(0)}\nN: ${utmPoint.y.toStringAsFixed(0)}";
   }
 
+// Helper function to determine UTM latitude band
+String _getLatBand(double latitude) {
+    // Latitude bands are each 8 degrees wide, start at -80° and end at +84°
+    if (latitude < -80 || latitude > 84) return "Out of range";
+    String bands = "CDEFGHJKLMNPQRSTUVWX";
+    int bandIndex = ((latitude + 80) / 8).floor();
+    return bands[bandIndex];
+}
+
   String _toMGRS(double latitude, double longitude) {
-    return "MGRS: ${Mgrs.forward([longitude, latitude], 5)}";
+    String mgrsString = Mgrs.forward([longitude, latitude], 5);
+    
+    // Example MGRS string: "17RLL6936381518"
+    // Zone + Band = 3 characters, Grid Zone Designation = 2 characters
+    if (mgrsString.length >= 15) {
+      String zoneBand = mgrsString.substring(0, 3); 
+      String gridZone = mgrsString.substring(3, 5); 
+      String easting = mgrsString.substring(5, 10); 
+      String northing = mgrsString.substring(10, 15); 
+
+      return "$zoneBand $gridZone $easting $northing";
+    }
+    return "MGRS: $mgrsString"; // Fallback to the original if something goes wrong
   }
+
 
   bool shouldShowLatLonLabels() {
     return _representationType == decimalDegrees || _representationType == degreesMinutesSeconds || _representationType == degreesDecimalMinutes;
