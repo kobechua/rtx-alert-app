@@ -33,6 +33,8 @@ class _PreviewPageState extends State<PreviewPage> {
 
   late double scaleFactorX;
   late double scaleFactorY;
+  late double imageHeight;
+  late double imageWidth;
 
   @override
   void initState() {
@@ -80,6 +82,8 @@ class _PreviewPageState extends State<PreviewPage> {
       _recognitions = filteredRecognitions;
       scaleFactorX = MediaQuery.of(context).size.width / (Image.file(image).width ?? 1);
       scaleFactorY = MediaQuery.of(context).size.height / (Image.file(image).height ?? 1);
+      imageHeight = Image.file(image).height ?? 1;
+      imageWidth = Image.file(image).width ?? 1;
     });
   }
 
@@ -181,15 +185,15 @@ class _PreviewPageState extends State<PreviewPage> {
           SizedBox(
             width: 500,
             height: 500,
-            child: Image.file(widget.previewImage, fit: BoxFit.contain, scale: 0.6,),
+            child: Image.file(widget.previewImage, fit: BoxFit.contain),
           ),
                               
           ..._recognitions.map((recog) {
             return Positioned(
               left: recog["rect"]["x"] * scaleFactorX,
-              top: recog["rect"]["y"] * scaleFactorY * 1.5,
+              top: recog["rect"]["y"] * (MediaQuery.of(context).size.height / 2 + imageHeight/2 )+ 175,
               width: recog["rect"]["w"] * scaleFactorX,
-              height: recog["rect"]["h"] * scaleFactorY / 1.5,
+              height: recog["rect"]["h"] * (MediaQuery.of(context).size.height / 2 + imageHeight/2) ,
               child: GestureDetector(
                 onTap: () => cropAndUploadImage(recog),
                 child: Stack(
