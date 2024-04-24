@@ -51,8 +51,15 @@ class _HomePageState extends State<HomePage> {
   LocationHandler location = LocationHandler();
   String locationError = '';
 
+  int currentCameraIndex = 0;
+  List<CameraDescription>? cameras;
   late final CameraActionController cameraActionController = CameraActionController();
   CameraController? homePageCameraController;
+  bool isCameraInitialized = false;
+  bool _isControllerDisposed = false;
+
+  bool isSwitchingCameras = false;
+
 
   StreamSubscription<CompassEvent>? compassListener;
 
@@ -79,7 +86,6 @@ class _HomePageState extends State<HomePage> {
     user = auth.auth.currentUser;
     initializeFirebaseMessaging();
     _locationFuture = location.getCurrentLocation();
-
     compassListener = FlutterCompass.events!.listen((CompassEvent event) { 
       setState(() {
         _azimuth = normalizeAzimuth(event.heading ?? 0);  //Normalize azimuth value
@@ -93,11 +99,14 @@ class _HomePageState extends State<HomePage> {
     cameraActionController.pickExistingPhoto = pickExistingPhoto;
     cameraActionController.takePhotoWithCamera = (camController) => takePhoto(camController);
   }
+  
 
   @override
   void dispose() async {
     compassListener?.cancel();
     sessionSubscription?.cancel();
+
+    
     convertedSessionID = '';
     
     super.dispose();
@@ -175,20 +184,80 @@ class _HomePageState extends State<HomePage> {
     return recognitions;
 }
 
+  void flipCamera() async {
+    debugPrint("Attempting to flip camera...");
+    
+    if (cameras == null || cameras!.isEmpty || isSwitchingCameras) {
+      debugPrint("Either no cameras are available or a switch is already in progress.");
+      return;
+    }
 
+    debugPrint("Available cameras ${cameras.toString()}.");
 
-  List<CameraDescription>? cameras;
-  
-  Future<void> loadCameras() async {
-  try {
-    List<CameraDescription> loadedCameras = await availableCameras();
+    isSwitchingCameras = true;
     setState(() {
-      cameras = loadedCameras;
+      _isControllerDisposed = true;
     });
+
+    if (homePageCameraController != null && homePageCameraController!.value.isInitialized) {
+      debugPrint("Disposing current camera controller...");
+      await homePageCameraController!.dispose();
+      setState(() {
+          _isControllerDisposed = true; // Set to true immediately after dispose
+      });
+      debugPrint("Current camera controller disposed.");
+    }
+
+    // Update the camera index
+    currentCameraIndex = (currentCameraIndex + 1) % cameras!.length;
+    
+    // Attempt to initialize the new camera
+    CameraController newController = CameraController(
+      cameras![currentCameraIndex],
+      ResolutionPreset.high,
+      enableAudio: false,
+      imageFormatGroup: ImageFormatGroup.jpeg
+    );
+    debugPrint("Initializing new camera controller...");
+
+  try {
+    await newController.initialize();
+    debugPrint("New camera controller initialized.");
+
+    if (!mounted) return;
+    setState(() {
+      homePageCameraController = newController;
+      _isControllerDisposed = false;
+      isSwitchingCameras = false;
+    });
+
   } catch (e) {
-    debugPrint(e.toString());
+    debugPrint("Failed to initialize the camera controller: $e");
+    setState(() {
+      _isControllerDisposed = true;
+      isSwitchingCameras = false;
+    });
   }
 }
+
+
+  Future<void> loadCameras() async {
+    try {
+      List<CameraDescription> loadedCameras = await availableCameras();
+      setState(() {
+        cameras = loadedCameras;
+        isCameraInitialized = true;
+        debugPrint("Cameras loaded: ${cameras!.length}");
+        homePageCameraController = CameraController(cameras![0], ResolutionPreset.high, enableAudio: false);
+        homePageCameraController?.initialize();
+      });
+    } catch (e) {
+      debugPrint("Failed to load cameras :$e");
+      setState(() {
+        isCameraInitialized = false;
+      });
+    }
+  }
 
   Future<void> pickExistingPhoto() async {
     final ImagePicker picker = ImagePicker();
@@ -362,27 +431,21 @@ class _HomePageState extends State<HomePage> {
 Widget build(BuildContext context) {
   final appSettings = Provider.of<AppSettings>(context, listen: true);
   
-  if (cameras == null) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
-
+  // Avoid building CameraPreview if the controller has been disposed or not initialized
+    if (!isCameraInitialized || cameras == null || _isControllerDisposed) {
+      debugPrint("Initialization status: Camera initialized = $isCameraInitialized, Cameras available = ${cameras != null}, Controller disposed = $_isControllerDisposed");
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
     );
   }
 
-  CameraHandler camera = CameraHandler(
-  cameras: cameras!,
-  onControllerCreated: (controller) {
-    homePageCameraController = controller;
-    cameraActionController.setCameraController(controller);
-    // controller.startImageStream((image) {
-    //   imageCount++;
-    //   if (imageCount % 30 == 0) {
-    //     imageCount = 0;
-    //     detectObjects(image);
-    //   }
-    //  });
-    },
-  );
+  if (cameras == null) {
+    debugPrint("Waiting for camera availability");
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
+    );
+  }
+
 
   if (user != null){
 
@@ -416,8 +479,8 @@ Widget build(BuildContext context) {
       child: Scaffold(
     body: Stack(
       children: [
-        if (cameras != null)
-          camera,
+        if (homePageCameraController != null && homePageCameraController!.value.isInitialized)
+          CameraPreview(homePageCameraController!),
 
 /// WIDGETS FOR THE LOCATION DATA ON THE TOP RIGHT OF THE SCREEN
         Positioned(
@@ -434,19 +497,50 @@ Widget build(BuildContext context) {
               future: _locationFuture,
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
+                  Position position = snapshot.data!;
+
                   final altitude = appSettings.convertAltitude(snapshot.data!.altitude);
                   final altitudeUnit = appSettings.useEnglishUnits ? "feet" : "meters";
 
-                  return Text(
-                    'LAT: ${snapshot.data!.latitude.toStringAsFixed(2)}°, \n'
-                    'LON: ${snapshot.data!.longitude.toStringAsFixed(2)}°, \n'
-                    'Azimuth: ${_azimuth?.toStringAsFixed(3)}°, \n'
-                    'ALT: ${altitude.toStringAsFixed(2)} $altitudeUnit',
-                    
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  String coordinatesDisplay; // This will hold the string to be displayed
+                  bool showLabels = appSettings.shouldShowLatLonLabels();
+
+                  if (appSettings.representationType == AppSettings.utm || appSettings.representationType == AppSettings.mgrs) {
+                    // For UTM or MGRS, we only display once
+                    coordinatesDisplay = appSettings.formatCoordinate(position.latitude, position.longitude, true);
+                  } else {
+                    // For other settings, show both with labels conditionally
+                    String formattedLatitude = appSettings.formatCoordinate(position.latitude, position.longitude, true);
+                    String formattedLongitude = appSettings.formatCoordinate(position.latitude, position.longitude, false);
+                    coordinatesDisplay = (showLabels ? 'LAT: $formattedLatitude\n' : '$formattedLatitude\n') +
+                                        (showLabels ? 'LON: $formattedLongitude' : formattedLongitude);
+                  }
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        coordinatesDisplay, // Display the coordinates appropriately
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'Azimuth: ${_azimuth?.toStringAsFixed(3)}°',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'ALT: ${altitude.toStringAsFixed(2)} $altitudeUnit',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   );
                 } else {
                   return const Text(
@@ -475,61 +569,75 @@ Widget build(BuildContext context) {
 
               final position = snapshot.data!;
               final center = LatLng(position.latitude, position.longitude);
-
-             
                 
-                return Stack(
-                  children: [ 
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      width: _isMapFullScreen ? MediaQuery.of(context).size.width : 100,
-                      height: _isMapFullScreen ? MediaQuery.of(context).size.width : 100,
-                      child: ClipOval(
-                        child: Stack(
-                          children: [
-                            FlutterMap(
-                              options: MapOptions(
-                                initialCenter: center,
-                                initialZoom: _isMapFullScreen ? 5.0 : 13.0,
-                                interactionOptions: const InteractionOptions(
-                                  flags: InteractiveFlag.none,
-                                ),
-                              ),
+                return StreamBuilder<CompassEvent>(
+                  stream: FlutterCompass.events,
+                  builder: (context, compassSnapshot) {
+                    if (!compassSnapshot.hasData) {
+                      return const CircularProgressIndicator();
+                    }
+
+                    // Compass heading
+                    final double heading = compassSnapshot.data!.heading ?? 0;
+                    final double headingRadians = heading * (pi/180);
+
+                    return Stack(
+                      children: [ 
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          width: _isMapFullScreen ? MediaQuery.of(context).size.width : 100,
+                          height: _isMapFullScreen ? MediaQuery.of(context).size.width : 100,
+                          child: ClipOval(
+                            child: Stack(
                               children: [
-                                TileLayer(
-                                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                                  subdomains: const ['a', 'b', 'c'],
-                                ),
-                                MarkerLayer(
-                                  markers: [
-                                    Marker(
-                                      width: 50.0,
-                                      height: 50.0,
-                                      point: center,
-                                      child: const Icon(Icons.location_on, size: 35.0, color: Colors.red,),
+                                FlutterMap(
+                                  options: MapOptions(
+                                    initialCenter: center,
+                                    initialZoom: _isMapFullScreen ? 5.0 : 13.0,
+                                    interactionOptions: const InteractionOptions(
+                                      flags: InteractiveFlag.none,
+                                    ),
+                                  ),
+                                  children: [
+                                    TileLayer(
+                                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                      subdomains: const ['a', 'b', 'c'],
+                                    ),
+                                    MarkerLayer(
+                                      markers: [
+                                        Marker(
+                                          width: 60.0,
+                                          height: 60.0,
+                                          point: center,
+                                          child: Transform.rotate(
+                                            angle: headingRadians,
+                                            child: const Icon(Icons.navigation, size: 30, color: Colors.red),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
+                                ClipOval(
+                                  child: Material(
+                                    color: Colors.transparent, // Keep the overlay transparent
+                                    child: InkWell(
+                                      onTap: () {
+                                        setState(() {
+                                          _isMapFullScreen = !_isMapFullScreen;
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
-                            ClipOval(
-                              child: Material(
-                                color: Colors.transparent, // Keep the overlay transparent
-                                child: InkWell(
-                                  onTap: () {
-                                    setState(() {
-                                      _isMapFullScreen = !_isMapFullScreen;
-                                    });
-                                  },
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ),
-                    
-                  ],
+                        
+                      ],
+                    );
+                  }
                 );
                 
               
@@ -547,6 +655,17 @@ Widget build(BuildContext context) {
             cameraActionController.takePhotoWithCamera!(homePageCameraController!);
           },
           child: button(Icons.camera_alt_outlined, Alignment.bottomCenter),
+        ),
+
+        // Camera flip button
+        Positioned(
+          right: 20, // Adjust the position as needed to place it next to the photo capture button
+          bottom: 100,
+          child: FloatingActionButton(
+            onPressed: flipCamera, // Call the flipCamera method
+            backgroundColor: Colors.white,
+            child: const Icon(Icons.flip_camera_ios, color: Colors.black),
+          ),
         ),
         Positioned(
           left: 20,

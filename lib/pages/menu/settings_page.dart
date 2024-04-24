@@ -37,7 +37,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final appSettings = Provider.of<AppSettings>(context, listen: false);
+    final appSettings = Provider.of<AppSettings>(context, listen: true);
     
 
     return Scaffold(
@@ -56,22 +56,89 @@ class _SettingsPageState extends State<SettingsPage> {
         backgroundColor: Colors.black87,
       ),
 
-      body: ListTile(
-        title: const Text(
-          'Switch to English units',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),),
-        trailing: Switch(
-          value: appSettings.useEnglishUnits,
-          activeTrackColor: Colors.black87,
-          
-          onChanged: (bool value) {
-            appSettings.toggleUnitSystem();
-            _updateSetting(value);
-          },
-        ),
+      body: Column(
+        children: [ 
+          ListTile(
+            title: const Text(
+              'Switch to English units',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+              ),),
+            trailing: Switch(
+              value: appSettings.useEnglishUnits,
+              activeTrackColor: Colors.black87,
+              
+              onChanged: (bool value) {
+                appSettings.toggleUnitSystem();
+                _updateSetting(value);
+              },
+            ),
+          ),
+          const ListTile(
+            title: Text(
+              'Latitude and Longitude Representation:',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.left, // This was centering your text. You can remove or change it.
+            ),
+          ),
+          ListTile(
+            title: const Text('Decimal Degrees'),
+            leading: Radio<int>(
+              value: AppSettings.decimalDegrees,
+              groupValue: appSettings.representationType,
+              onChanged: (value) {
+                appSettings.setRepresentationType(value!);
+              },
+              activeColor: Colors.black,
+            ),
+          ),
+          ListTile(
+            title: const Text('Degrees, Minutes, and Seconds'),
+            leading: Radio<int>(
+              value: AppSettings.degreesMinutesSeconds,
+              groupValue: appSettings.representationType,
+              onChanged: (value) {
+                appSettings.setRepresentationType(value!);
+              },
+              activeColor: Colors.black,
+            ),
+          ),
+          ListTile(
+            title: const Text('Degrees and Decimal Minutes'),
+            leading: Radio<int>(
+              value: AppSettings.degreesDecimalMinutes,
+              groupValue: appSettings.representationType,
+              onChanged: (value) {
+                appSettings.setRepresentationType(value!);
+              },
+              activeColor: Colors.black,
+            ),
+          ),
+          ListTile(
+            title: const Text('UTM'),
+            leading: Radio<int>(
+              value: AppSettings.utm,
+              groupValue: appSettings.representationType,
+              onChanged: (value) {
+                appSettings.setRepresentationType(value!);
+              },
+              activeColor: Colors.black,
+            ),
+          ),
+          ListTile(
+            title: const Text('MGRS'),
+            leading: Radio<int>(
+              value: AppSettings.mgrs,
+              groupValue: appSettings.representationType,
+              onChanged: (value) {
+                appSettings.setRepresentationType(value!);
+              },
+              activeColor: Colors.black,
+            ),
+          ),
+        ],
       ),
+      
     );
   }
 }

@@ -19,6 +19,7 @@ import 'package:rtx_alert_app/pages/menu/app_settings.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:rtx_alert_app/services/notifications.dart';
 
+
 void pingUser() async {
   DateTime datetime = DateTime.now();
   debugPrint("Pinged User: $datetime");
@@ -45,6 +46,7 @@ void callbackDispatcher() {
 
 
 void main() async {
+
   WidgetsFlutterBinding.ensureInitialized();
   Workmanager().initialize(callbackDispatcher);
   await Firebase.initializeApp(

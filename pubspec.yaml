@@ -37,6 +37,8 @@ dependencies:
   flutter_map: ^6.1.0
   latlong2: ^0.9.0  
   flutter_compass: ^0.8.0
+  proj4dart: ^2.1.0
+  mgrs_dart: ^2.0.0
 
   crypto: ^3.0.3
   shared_preferences: ^2.2.2

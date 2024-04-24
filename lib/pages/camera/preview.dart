@@ -133,13 +133,14 @@ class _PreviewPageState extends State<PreviewPage> {
           'entry': submissionKey,
           'name': submissionValue['Region'],
           'id': submissionValue['alertID'],
+          'car' : submissionValue['car']
         };
 
         alerts.add(entry);
         dropdownEntries.add(
           DropdownMenuItem(
             value: entry['id'].toString(),
-            child: Text('${entry['name']} - ID ${entry['id'].toString()}'),
+            child: Text('${entry['name']} - ID ${entry['id'].toString()}\n${entry['car']['color']} ${entry['car']['make']} ${entry['car']['model']}'),
           )
         );
       });
@@ -210,7 +211,7 @@ class _PreviewPageState extends State<PreviewPage> {
                         color: Colors.red,
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         child: Text(
-                          '${recog['detectedClass']} ${recog['confidenceInClass']}',
+                          '${recog['detectedClass']} ${recog['confidenceInClass'].toStringAsFixed(2)}',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 12,
