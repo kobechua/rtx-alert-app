@@ -17,7 +17,7 @@ class Storage {
 
   
 
-  Future<void> uploadPhoto(String filePath, String fileName, double azimuth) async {
+  Future<void> uploadPhoto(String filePath, String fileName, double azimuth, String alertID) async {
     File file = File(filePath);
     Position pos = await location.getCurrentLocation();
 
@@ -39,8 +39,8 @@ class Storage {
                   'photo': url,
                   'date': datetime.toString(),
                   'data' : {'long' : pos.longitude, 'lat' : pos.latitude, 'alt' : pos.altitude, 'azimuth' : azimuth},
-                  'status' : 'Processing'
-              
+                  'status' : 'Processing',
+                  'alert_id' : alertID
               }
             
           }

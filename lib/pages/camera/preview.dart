@@ -1,10 +1,14 @@
-import 'package:flutter/material.dart';
-import 'package:tflite/tflite.dart';
-// import 'package:camera/camera.dart';
+import 'dart:convert';
 import 'dart:io';
-// import 'package:flutter/services.dart';
-import '../../services/storage.dart';
+
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
+import 'package:tflite/tflite.dart';
+
+import '../../services/storage.dart';
 
 class PreviewPage extends StatefulWidget {
   final File previewImage;
@@ -13,19 +17,38 @@ class PreviewPage extends StatefulWidget {
   const PreviewPage({super.key, required this.previewImage, required this.azimuth});
 
   @override
-   State<PreviewPage> createState() => _PreviewPageState();
+  State<PreviewPage> createState() => _PreviewPageState();
 }
 
 class _PreviewPageState extends State<PreviewPage> {
   List _recognitions = [];
   img.Image? image;
+  List<Map<String, dynamic>> alerts = [];
+  List<DropdownMenuItem<String>> dropdownEntries = [];
+
+  String? dropdownText;
+
+  FirebaseAuth user = FirebaseAuth.instance;
+  FirebaseMessaging msg = FirebaseMessaging.instance;
+
+  late double scaleFactorX;
+  late double scaleFactorY;
 
   @override
   void initState() {
     super.initState();
     loadModel();
     detectObjects();
+    setState(() {
+
+    });
     loadImage();
+    getAlerts();
+
+    // if (image != null) {
+
+    // }
+
   }
 
   loadModel() async {
@@ -55,6 +78,8 @@ class _PreviewPageState extends State<PreviewPage> {
     
     setState(() {
       _recognitions = filteredRecognitions;
+      scaleFactorX = MediaQuery.of(context).size.width / (Image.file(image).width ?? 1);
+      scaleFactorY = MediaQuery.of(context).size.height / (Image.file(image).height ?? 1);
     });
   }
 
@@ -64,81 +89,138 @@ class _PreviewPageState extends State<PreviewPage> {
     final cropW = (recognition['rect']['w'] * image!.width).toInt();
     final cropH = (recognition['rect']['h'] * image!.height).toInt();
 
-    img.Image croppedImg = img.copyCrop(image!, x:cropX, y: cropY, width: cropW, height: cropH);
+    img.Image croppedImg = img.copyCrop(image!, x: cropX, y: cropY, width: cropW, height: cropH);
     var croppedFile = File('${widget.previewImage.path}_cropped.png')
       ..writeAsBytesSync(img.encodePng(croppedImg));
 
-    Storage().uploadPhoto(croppedFile.path, widget.previewImage.path, widget.azimuth);
+    Storage().uploadPhoto(croppedFile.path, widget.previewImage.path, widget.azimuth, (dropdownText ?? '0') );
     Navigator.of(context).pop();
   }
-  
-@override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: AppBar(
-      title: const Text('Preview'),
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back),
-        onPressed: () => Navigator.of(context).pop(),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () {
-            Storage().uploadPhoto(widget.previewImage.path, widget.previewImage.path, widget.azimuth);
-            Navigator.of(context).pop();
-          },
-          child: const Text("Submit", style: TextStyle(color: Colors.black)),
-        ),
-      ],
-    ),
-    body: Stack(
-      
-      children: [
-        Image.file(widget.previewImage,
-          width: 500,
-          height: 500,
-         ),
+
+  Future<void> getAlerts() async {
+    final database = FirebaseDatabase.instance;
+    final token = await msg.getToken();
+    final dir = database.ref("Alerts/$token/");
+
+    dropdownEntries.add(
+      const DropdownMenuItem(
+        value: '0',
+        child: Text('For fun!'),
+      )
+    );
+
+    DataSnapshot snapshot = await dir.get();
+    if (snapshot.exists) {
+      Map<dynamic, dynamic> entries = snapshot.value as Map<dynamic, dynamic>;
+      entries.forEach((key, value) {
+        String submissionKey = key as String;
+        Map<String, dynamic> submissionValue;
+
+        if (value['data'] is String) {
+          submissionValue = json.decode(value['data']);
+        } else if (value is Map) {
+          submissionValue = value.map<String, dynamic>((k, v) => MapEntry(k as String, v));
+        } else {
+          debugPrint('Unexpected data type for submission data');
+          return; 
+        }
         
-        ..._recognitions.map((recog) {
-          debugPrint('${MediaQuery.of(context).size.width.toString()}, ${MediaQuery.of(context).size.height.toString()}');
-          debugPrint('${image?.width}, ${image?.height}');
-          return Positioned(
-            left: recog["rect"]["x"] * MediaQuery.of(context).size.width,
-            top: recog["rect"]["y"] * MediaQuery.of(context).size.height,
-            width: recog["rect"]["w"] * MediaQuery.of(context).size.width,
-            height: recog["rect"]["h"] * MediaQuery.of(context).size.height,
-            child: GestureDetector(
-              onTap: () => cropAndUploadImage(recog),
-              child: Stack(
-                alignment: Alignment.bottomCenter,
-                children: <Widget>[
-                  Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.red, width: 3),
+        final entry = {
+          'entry': submissionKey,
+          'name': submissionValue['Region'],
+          'id': submissionValue['alertID'],
+        };
+
+        alerts.add(entry);
+        dropdownEntries.add(
+          DropdownMenuItem(
+            value: entry['id'].toString(),
+            child: Text('${entry['name']} - ID ${entry['id'].toString()}'),
+          )
+        );
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Calculate scale factors
+
+    return Scaffold(
+      appBar: AppBar(
+        title: DropdownButton<String>(
+          value: dropdownText,
+          hint: const Text("Select Alert"),
+          onChanged: (String? newValue) {
+            setState(() {
+              dropdownText = newValue;
+            });
+          },
+          items: dropdownEntries,
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Storage().uploadPhoto(widget.previewImage.path, widget.previewImage.path, widget.azimuth, (dropdownText ?? '0'));
+              Navigator.of(context).pop();
+            },
+            style: ButtonStyle(backgroundColor:  MaterialStateProperty.all<Color>(const Color.fromARGB(255, 241, 241, 241))),
+            child: const Text("Submit", style: TextStyle(color: Colors.black)),
+          ),
+          const SizedBox(width: 10)
+        ],
+      ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const Divider(height: 10,),
+          SizedBox(
+            width: 500,
+            height: 500,
+            child: Image.file(widget.previewImage, fit: BoxFit.contain, scale: 0.6,),
+          ),
+                              
+          ..._recognitions.map((recog) {
+            return Positioned(
+              left: recog["rect"]["x"] * scaleFactorX,
+              top: recog["rect"]["y"] * scaleFactorY * 1.5,
+              width: recog["rect"]["w"] * scaleFactorX,
+              height: recog["rect"]["h"] * scaleFactorY / 1.5,
+              child: GestureDetector(
+                onTap: () => cropAndUploadImage(recog),
+                child: Stack(
+                  alignment: Alignment.bottomCenter,
+                  children: <Widget>[
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.red, width: 3),
+                      ),
                     ),
-                  ),
-                  Positioned(
-                    top: 0,
-                    child: Container(
-                      color: Colors.red,
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      child: Text(
-                        '${recog['detectedClass']} ${recog['confidenceInClass']}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
+                    Positioned(
+                      top: 0,
+                      child: Container(
+                        color: Colors.red,
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        child: Text(
+                          '${recog['detectedClass']} ${recog['confidenceInClass']}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          );
-        }),
-      ],
-    ),
-  );
-}
-
+            );
+          }),
+        ],
+      ),
+    );
+  }
 }

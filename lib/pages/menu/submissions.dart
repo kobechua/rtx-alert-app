@@ -65,7 +65,7 @@ Future<List<Map<String, dynamic>>> getSubmissionsDB() async {
         debugPrint('Unexpected data type for submission data');
         return; 
       }
-      debugPrint(submissionKey);
+      debugPrint(submissionValue.toString());
       final entry = {
         'name': submissionKey,
         'photo': submissionValue['photo'],
