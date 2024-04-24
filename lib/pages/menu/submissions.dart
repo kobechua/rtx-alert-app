@@ -1,10 +1,14 @@
 // import 'dart:convert';
 // import 'package:flutter/foundation.dart';
 
+import 'dart:convert';
+
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_database/firebase_database.dart';
+// import 'package:firebase_storage/firebase_storage.dart';
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 // import 'package:rtx_alert_app/components/my_button.dart';
 
 class SubmissionPage extends StatefulWidget {
@@ -25,56 +29,68 @@ class _SubmissionPageState extends State<SubmissionPage> {
   @override
   void initState() {
     super.initState();
-    getSubmissions();
+    getSubmissionsDB();
   }
 
-  Future<List<Map<String, dynamic>>> getSubmissions() async {
-    final storage = FirebaseStorage.instance;
-    List<Map<String, dynamic>> list = [];
-    final dir =  storage.ref().root.child("/submissions/${user!.uid}/");
+List<Map<String, dynamic>> sortListOfMapsByDateKey(List<Map<String, dynamic>> list, String dateKey) {
+  list.sort((a, b) {
+    // Converting string to DateTime objects
+    DateTime firstDate = DateFormat('yyyy-MM-dd').parse(a[dateKey] ?? '0001-01-01');
+    DateTime secondDate = DateFormat('yyyy-MM-dd').parse(b[dateKey] ?? '0001-01-01');
+    return firstDate.compareTo(secondDate);
+  });
 
-    final listResult = await dir.listAll();
-    for (var i in listResult.prefixes){
-        await dir.child("${i.name}/photo.jpg").getDownloadURL().then((url) {
-          // debugPrint("URL HERE $url");
-          setState(() {
-            imageUrl = url;
-          });
-          list.add({
-          'name' : i.name,
-          'photo' : url, 
-          'metadata' : i.child("metadata.json")});
+  return list;
+}
+
+Future<List<Map<String, dynamic>>> getSubmissionsDB() async {
+  final database = FirebaseDatabase.instance;
+  List<Map<String, dynamic>> list = [];
+  final dir = database.ref('UserData/${user!.uid}/submissions');
+  final DataSnapshot snapshot = await dir.get();
+
+  if (snapshot.exists) {
+    Map<dynamic, dynamic> submissions = snapshot.value as Map<dynamic, dynamic>;
+    submissions.forEach((key, value) {
+      debugPrint('submissions- ${value['status']}');
+
+      String submissionKey = key as String;
+      Map<String, dynamic> submissionValue;
+      if (value['data'] is String) {
+        submissionValue = json.decode(value['data']);
+      } else if (value is Map) {
+
+        submissionValue = value.map<String, dynamic>((k, v) => MapEntry(k as String, v));
+      } else {
+        debugPrint('Unexpected data type for submission data');
+        return; 
       }
-      );
-      // final contents = await i.list();
-
-
-      // debugPrint(i.name);
-      // list.add({
-      //   'name' : i.name,
-      //   'photo' : imageUrl, 
-      //   'metadata' : contents.items.last});
-    }
-    
-    setState(() {
-      submission = [...list];
+      debugPrint(submissionValue.toString());
+      final entry = {
+        'name': submissionKey,
+        'photo': submissionValue['photo'],
+        'data': submissionValue, // Now directly usable
+      };
+      list.add(entry);
     });
-
-    return list;
+  } else {
+    debugPrint("No submissions found.");
   }
+
+  // Assuming you have a way to call setState outside of this context, otherwise this line needs adjustment
+  setState(() {
+    submission = [...list];
+    submission = sortListOfMapsByDateKey(submission, 'name');
+  });
+
+  return list;
+}
+
 
   @override
   Widget build(BuildContext context) {
-    debugPrint(submission.length.toString());
-
-    debugPrint("Start here");
-    for (var listIndex in submission){
-      debugPrint(listIndex['photo']);
-    }
-    debugPrint("End here");
     return Scaffold(
 
-// HERE
       appBar: AppBar(
         title: const Text(
           'Submissions',
@@ -93,17 +109,6 @@ class _SubmissionPageState extends State<SubmissionPage> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // const Padding(
-            //   padding: EdgeInsets.all(8.0),
-            //   child: Text(
-            //     "Submissions",
-            //     style: TextStyle(
-            //       fontSize: 28.0,
-            //       fontWeight: FontWeight.bold,
-            //       color: Colors.white,
-            //     ),
-            //   ),
-            // ),
             SizedBox(
               height: MediaQuery.of(context).size.height * 0.8, // Adjust the height as needed
               child: ListView.builder(
@@ -112,7 +117,8 @@ class _SubmissionPageState extends State<SubmissionPage> {
                 itemCount: submission.length,
                 itemBuilder: (context, index) {
                   
-                  final data = submission[index];
+                  final Map<String, dynamic> data = submission[index];
+                  final Map<String, dynamic> metadata = submission[index]['data'];
 
                   return Card(
                     margin: const EdgeInsets.all(8.0).copyWith(
@@ -122,6 +128,7 @@ class _SubmissionPageState extends State<SubmissionPage> {
                       padding: const EdgeInsets.all(8.0),
                       child: Row(
                         children: [
+                          
                             Image.network(
                               data['photo'],
                               width: 60,
@@ -135,12 +142,19 @@ class _SubmissionPageState extends State<SubmissionPage> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  metadata['status'] != 'Processing' ? 
                                   Text(
-                                    data['name'],
+                                    '${data['name']}\nStatus: ${metadata['status']['Success'] ? "Car Detected"  : 'No Car Detected'}',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
                                     ),
+                                  ) : 
+                                  const Text('Processing',
+                                      style:  TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    )
                                   ),
                                   const SizedBox(height: 4),
                                   // Text(reward['description']),
@@ -151,16 +165,62 @@ class _SubmissionPageState extends State<SubmissionPage> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              // Text(
-                              //   reward['points'], // Display points required for each badge
-                              //   style: const TextStyle(
-                              //     fontWeight: FontWeight.bold,
-                              //     color: Colors.black54,
-                              //   ),
-                              // ),
                               ElevatedButton(
                                 onPressed: () {
-                                  // Handle claim reward action
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => Dialog.fullscreen(
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.max,
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: <Widget> [
+                                          SizedBox(
+                                            width: 500,
+                                            height: 500,
+                                            child: Image.network(data['photo'], fit: BoxFit.contain),
+                                          ),
+
+                                         
+                                          metadata['status'] != 'Processing' ? 
+                                          Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Text('Date: ${metadata['date'].toString()}'),
+                                              const Text('Location',
+                                                style :   TextStyle(
+                                                        fontSize: 16,
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
+                                              ),
+                                              Text('Longitude: ${metadata['data']['long']}, Latitude: ${metadata['data']['lat']}'),
+                                              metadata['status']['Success'] == true
+                                                  ? Column(
+                                                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                                    children : [
+                                                    const Text('Car Details',
+                                                      style :  TextStyle(
+                                                        fontSize: 16,
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
+                                                    ), 
+                                                    Text('Color: ${ metadata['status']['Color'] ?? 'NONE'}, ${(metadata['status']['C_prob']*100).toStringAsFixed(2) ?? 'NONE'}%\nMake, Model: ${ metadata['status']['Make'] ?? 'NONE'} ${metadata['status']['Model'] ?? 'NONE'}, ${(metadata['status']['MM_prob']*100).toStringAsFixed(2) ?? 'NONE'}%',)
+                                                  ])
+                                                  : const Text('No car detected in this picture'),
+                                          ]
+                                          )
+                                          : const Text("Image is still processing"),
+                                          const SizedBox(height: 15),
+
+                                          TextButton(
+                                            onPressed: () {
+                                            Navigator.pop(context);
+                                            },
+
+                                          child: const Text('Close'))
+                                        ]
+                                      )
+                                    )
+                                    );
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.black87, // Button color

@@ -1,7 +1,6 @@
-// import 'package:cloud_firestore/cloud_firestore.dart'; 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
-// import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -9,27 +8,27 @@ import 'package:latlong2/latlong.dart';
 import 'dart:async';
 import 'package:crypto/crypto.dart';
 import 'dart:convert'; 
-
 import 'package:flutter_compass/flutter_compass.dart';
-import 'package:rtx_alert_app/pages/app_settings.dart';
-import 'package:rtx_alert_app/pages/camera/camera_handler.dart';
-import 'package:rtx_alert_app/pages/leaderboards_page.dart';
-import 'package:rtx_alert_app/pages/menu/submissions.dart';
-import 'package:rtx_alert_app/pages/rewards_page.dart';
 
+import 'package:rtx_alert_app/pages/menu/app_settings.dart';
+import 'package:rtx_alert_app/pages/camera/camera_handler.dart';
+import 'package:rtx_alert_app/pages/menu/leaderboards_page.dart';
+import 'package:rtx_alert_app/pages/menu/submissions.dart';
+import 'package:rtx_alert_app/pages/menu/rewards_page.dart';
 import 'package:rtx_alert_app/services/auth.dart';
 import 'package:rtx_alert_app/services/location.dart';
 
 import 'package:camera/camera.dart';
 import 'package:rtx_alert_app/pages/camera/preview.dart';
-import 'package:rtx_alert_app/pages/settings_page.dart';
-// import 'package:rtx_alert_app/services/auth.dart';
+import 'package:rtx_alert_app/pages/menu/settings_page.dart';
+
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
 
 import 'package:rtx_alert_app/services/session_listener.dart';
 
+import 'package:tflite/tflite.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -42,6 +41,7 @@ class _HomePageState extends State<HomePage> {
 
   FirebaseAuthService auth =  FirebaseAuthService();
   FirebaseDatabase database = FirebaseDatabase.instance;
+  final FirebaseMessaging firebaseMessaging = FirebaseMessaging.instance;
   StreamSubscription<DatabaseEvent>? sessionSubscription;
   late String convertedSessionID;
   User? user;
@@ -62,10 +62,12 @@ class _HomePageState extends State<HomePage> {
 
 
   StreamSubscription<CompassEvent>? compassListener;
-  // final FirebaseAuthService auth = FirebaseAuthService();
+
   Future<Position>? _locationFuture;
   static bool _locationInitialized = false;
   bool _isMapFullScreen = false;
+  
+  int imageCount = 0;
 
   double? _azimuth;
   double normalizeAzimuth(double azimuth) {
@@ -78,12 +80,12 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState()  {
     super.initState();
-    createToken(); //Token should be made before reachinng this page. could try making token in greeting then pulling it here
-    // convertedSessionID = auth.convertedSessionID;
+    createToken();
     loadCameras();
+    // loadModel();
     user = auth.auth.currentUser;
+    initializeFirebaseMessaging();
     _locationFuture = location.getCurrentLocation();
-    flipCamera();
     compassListener = FlutterCompass.events!.listen((CompassEvent event) { 
       setState(() {
         _azimuth = normalizeAzimuth(event.heading ?? 0);  //Normalize azimuth value
@@ -100,13 +102,48 @@ class _HomePageState extends State<HomePage> {
   
 
   @override
-  void dispose() {
+  void dispose() async {
     compassListener?.cancel();
     sessionSubscription?.cancel();
 
     
     convertedSessionID = '';
+    
     super.dispose();
+    await Tflite.close();
+  }
+
+    void initializeFirebaseMessaging() {
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      // Assuming 'notification' exists and contains a title and body.
+      String title = message.notification?.title ?? "No Title";
+      String body = message.notification?.body ?? "No Body";
+
+      _showNotificationAlert(title, body);
+    });
+
+    // Request permission for iOS devices
+    firebaseMessaging.requestPermission();
+  }
+
+  void _showNotificationAlert(String title, String body) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(title),
+          content: Text(body),
+          actions: [
+            TextButton(
+              child: const Text("OK"),
+              onPressed: () {
+                Navigator.of(context).pop(); // Dismiss the dialog
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> createToken() async {
@@ -118,42 +155,70 @@ class _HomePageState extends State<HomePage> {
     await database.ref().child('Sessions/${auth.user!.uid}').set({'sessionID' : convertedSessionID.toString()});
   }
 
-void flipCamera() async {
-  debugPrint("Attempting to flip camera...");
-  
-  if (cameras == null || cameras!.isEmpty || isSwitchingCameras) {
-    debugPrint("Either no cameras are available or a switch is already in progress.");
-    return;
+  Future<void> loadModel() async {
+
+    await Tflite.loadModel(
+      model: "assets/ssd_mobilenet.tflite",
+      labels: "assets/ssd_mobilenet.txt",
+      numThreads: 1, // defaults to 1
+      isAsset: true, // defaults to true, set to false to load resources outside assets
+      useGpuDelegate: false // defaults to false, set to true to use GPU delegate
+    );
   }
 
-  debugPrint("Available cameras ${cameras.toString()}.");
+  Future<List?> detectObjects(CameraImage img) async {
+    var recognitions = await Tflite.detectObjectOnFrame(
+      bytesList: img.planes.map((plane) => plane.bytes).toList(), // CameraImage bytes
+      model: "SSDMobileNet",
+      imageHeight: img.height,
+      imageWidth: img.width,
+      imageMean: 127.5, // values depend on the model
+      imageStd: 127.5,
+      numResultsPerClass: 1,
+    );
 
-  isSwitchingCameras = true;
-  setState(() {
-    _isControllerDisposed = true;
-  });
+    if (recognitions![0]['confidenceInClass'] > 0.5){
+      debugPrint(recognitions[0].toString());
+    }
+    
+    return recognitions;
+}
 
-  if (homePageCameraController != null && homePageCameraController!.value.isInitialized) {
-    debugPrint("Disposing current camera controller...");
-    await homePageCameraController!.dispose();
+  void flipCamera() async {
+    debugPrint("Attempting to flip camera...");
+    
+    if (cameras == null || cameras!.isEmpty || isSwitchingCameras) {
+      debugPrint("Either no cameras are available or a switch is already in progress.");
+      return;
+    }
+
+    debugPrint("Available cameras ${cameras.toString()}.");
+
+    isSwitchingCameras = true;
     setState(() {
-        _isControllerDisposed = true; // Set to true immediately after dispose
+      _isControllerDisposed = true;
     });
-    debugPrint("Current camera controller disposed.");
-  }
 
-  // Update the camera index
-  currentCameraIndex = (currentCameraIndex + 1) % cameras!.length;
-  
-  // Attempt to initialize the new camera
-  CameraController newController = CameraController(
-    cameras![currentCameraIndex],
-    ResolutionPreset.high,
-    enableAudio: false,
-    imageFormatGroup: ImageFormatGroup.jpeg
-  );
+    if (homePageCameraController != null && homePageCameraController!.value.isInitialized) {
+      debugPrint("Disposing current camera controller...");
+      await homePageCameraController!.dispose();
+      setState(() {
+          _isControllerDisposed = true; // Set to true immediately after dispose
+      });
+      debugPrint("Current camera controller disposed.");
+    }
 
-  debugPrint("Initializing new camera controller...");
+    // Update the camera index
+    currentCameraIndex = (currentCameraIndex + 1) % cameras!.length;
+    
+    // Attempt to initialize the new camera
+    CameraController newController = CameraController(
+      cameras![currentCameraIndex],
+      ResolutionPreset.high,
+      enableAudio: false,
+      imageFormatGroup: ImageFormatGroup.jpeg
+    );
+    debugPrint("Initializing new camera controller...");
 
   try {
     await newController.initialize();
@@ -177,22 +242,22 @@ void flipCamera() async {
 
 
   Future<void> loadCameras() async {
-  try {
-    List<CameraDescription> loadedCameras = await availableCameras();
-    setState(() {
-      cameras = loadedCameras;
-      isCameraInitialized = true;
-      debugPrint("Cameras loaded: ${cameras!.length}");
-      homePageCameraController = CameraController(cameras![0], ResolutionPreset.high, enableAudio: false);
-      homePageCameraController?.initialize();
-    });
-  } catch (e) {
-    debugPrint("Failed to load cameras :$e");
-    setState(() {
-      isCameraInitialized = false;
-    });
+    try {
+      List<CameraDescription> loadedCameras = await availableCameras();
+      setState(() {
+        cameras = loadedCameras;
+        isCameraInitialized = true;
+        debugPrint("Cameras loaded: ${cameras!.length}");
+        homePageCameraController = CameraController(cameras![0], ResolutionPreset.high, enableAudio: false);
+        homePageCameraController?.initialize();
+      });
+    } catch (e) {
+      debugPrint("Failed to load cameras :$e");
+      setState(() {
+        isCameraInitialized = false;
+      });
+    }
   }
-}
 
   Future<void> pickExistingPhoto() async {
     final ImagePicker picker = ImagePicker();
@@ -202,7 +267,7 @@ void flipCamera() async {
       if (!mounted) return;
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (context) => PreviewPage(previewImage: selectedImageFile),
+          builder: (context) => PreviewPage(previewImage: selectedImageFile, azimuth: _azimuth ?? 0),
         ),
       );
     }
@@ -213,7 +278,7 @@ void flipCamera() async {
     if (!mounted) return;
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => PreviewPage(previewImage: File(image.path)),
+        builder: (context) => PreviewPage(previewImage: File(image.path),  azimuth: _azimuth ?? 0),
       ),
     );
   }
@@ -288,7 +353,7 @@ void flipCamera() async {
                   Navigator.push(context, MaterialPageRoute(builder: (context) => const SubmissionPage()));
                 },
               ),
-              const SizedBox(height: 10),
+              const Divider(color: Colors.black26),
               ListTile(
                 title: const Text('Rewards',
                   style: TextStyle(
@@ -385,24 +450,24 @@ Widget build(BuildContext context) {
   if (user != null){
 
     sessionSubscription = database.ref().child('Sessions/${user!.uid}').onValue.listen((event) {
-    DataSnapshot snapshot = event.snapshot;
-    if (snapshot.value is Map){
-      Map<dynamic, dynamic> valueMap = snapshot.value as Map<dynamic, dynamic>;
-      String storedSessionID = valueMap['sessionID'];
+      DataSnapshot snapshot = event.snapshot;
+      if (snapshot.value is Map){
+        Map<dynamic, dynamic> valueMap = snapshot.value as Map<dynamic, dynamic>;
+        String storedSessionID = valueMap['sessionID'];
 
-      if (storedSessionID != convertedSessionID && convertedSessionID != ''){
+        if (storedSessionID != convertedSessionID && convertedSessionID != ''){
 
-        debugPrint("SIGNOUTTOKEN");
-        // convertedSessionID = '';
-        auth.signOut();
+          debugPrint("SIGNOUTTOKEN");
+          // convertedSessionID = '';
+          auth.signOut();
+        }
       }
-    }
     
-  });
+    });
 }
 
     return SessionTimeOutListener(
-      duration: const Duration(minutes: 5),
+      duration: const Duration(minutes: 10),
       onTimeOut: () async {
         debugPrint("SIGNOUTTIMER");
         await auth.signOut();
