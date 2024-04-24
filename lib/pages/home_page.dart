@@ -75,7 +75,7 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     createToken();
     loadCameras();
-    loadModel();
+    // loadModel();
     user = auth.auth.currentUser;
     initializeFirebaseMessaging();
     _locationFuture = location.getCurrentLocation();
@@ -374,13 +374,13 @@ Widget build(BuildContext context) {
   onControllerCreated: (controller) {
     homePageCameraController = controller;
     cameraActionController.setCameraController(controller);
-    controller.startImageStream((image) {
-      imageCount++;
-      if (imageCount % 30 == 0) {
-        imageCount = 0;
-        detectObjects(image);
-      }
-     });
+    // controller.startImageStream((image) {
+    //   imageCount++;
+    //   if (imageCount % 30 == 0) {
+    //     imageCount = 0;
+    //     detectObjects(image);
+    //   }
+    //  });
     },
   );
 
