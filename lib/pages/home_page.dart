@@ -72,7 +72,6 @@ class _HomePageState extends State<HomePage> {
   MapController mapController = MapController();
   LatLng? currentPosition;
 
-  MapController mapController = MapController();
 
   bool _isMapFullScreen = false;
 
