@@ -22,7 +22,6 @@ import 'package:rtx_alert_app/services/notifications.dart';
 
 void pingUser() async {
   DateTime datetime = DateTime.now();
-  debugPrint("Pinged User: $datetime");
   FirebaseDatabase database = FirebaseDatabase.instance;
   
   await FirebaseMessaging.instance.requestPermission();
@@ -30,7 +29,8 @@ void pingUser() async {
   final position = LocationHandler();
   Position pos = await position.getCurrentLocation();
   final fcmToken = await FirebaseMessaging.instance.getToken();
-  database.ref().child('Locations/$fcmToken').set({'last_location' : {'latitude': pos.latitude, 'longitude': pos.longitude}, 'timestamp': datetime.toString()});
+  await database.ref().child('Locations/$fcmToken').set({'last_location' : {'latitude': pos.latitude, 'longitude': pos.longitude}, 'timestamp': datetime.toString()});
+  debugPrint("Pinged User: $datetime, $fcmToken");
 }
 
 void callbackDispatcher() {
