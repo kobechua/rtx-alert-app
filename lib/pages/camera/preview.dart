@@ -46,11 +46,6 @@ class _PreviewPageState extends State<PreviewPage> {
     });
     loadImage();
     getAlerts();
-
-    // if (image != null) {
-
-    // }
-
   }
 
   loadModel() async {
@@ -105,7 +100,7 @@ class _PreviewPageState extends State<PreviewPage> {
     final database = FirebaseDatabase.instance;
     final token = await msg.getToken();
     final dir = database.ref("Alerts/$token/");
-
+    debugPrint(token);
     dropdownEntries.add(
       const DropdownMenuItem(
         value: '0',
@@ -150,7 +145,7 @@ class _PreviewPageState extends State<PreviewPage> {
   @override
   Widget build(BuildContext context) {
     // Calculate scale factors
-
+    
     return Scaffold(
       appBar: AppBar(
         title: DropdownButton<String>(
@@ -162,6 +157,7 @@ class _PreviewPageState extends State<PreviewPage> {
             });
           },
           items: dropdownEntries,
+          
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -176,7 +172,6 @@ class _PreviewPageState extends State<PreviewPage> {
             style: ButtonStyle(backgroundColor:  MaterialStateProperty.all<Color>(const Color.fromARGB(255, 241, 241, 241))),
             child: const Text("Submit", style: TextStyle(color: Colors.black)),
           ),
-          const SizedBox(width: 10)
         ],
       ),
       body: Stack(
