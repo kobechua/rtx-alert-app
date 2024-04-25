@@ -29,6 +29,7 @@ import 'package:provider/provider.dart';
 import 'dart:io';
 
 import 'package:rtx_alert_app/services/session_listener.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 class HomePage extends StatefulWidget {
@@ -62,9 +63,13 @@ class _HomePageState extends State<HomePage> {
 
 
   StreamSubscription<CompassEvent>? compassListener;
+  StreamSubscription<Position>? positionStreamSubscription;
   // final FirebaseAuthService auth = FirebaseAuthService();
-  Future<Position>? _locationFuture;
-  static bool _locationInitialized = false;
+  double? latitude;
+  double? longitude;
+  double? altitude;
+  LatLng? currentPosition;
+
   bool _isMapFullScreen = false;
 
   double? _azimuth;
@@ -78,38 +83,50 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState()  {
     super.initState();
+    checkLocationPermissionAndInitialize();
     createToken(); //Token should be made before reachinng this page. could try making token in greeting then pulling it here
     // convertedSessionID = auth.convertedSessionID;
     loadCameras();
     user = auth.auth.currentUser;
+    flipCamera();
     
-    _locationFuture = location.getCurrentLocation();
-
     compassListener = FlutterCompass.events!.listen((CompassEvent event) { 
       setState(() {
         _azimuth = normalizeAzimuth(event.heading ?? 0);  //Normalize azimuth value
       });
     });
 
-    if (!_locationInitialized) {
-      initializeLocation();                     //get current location once per session
-    }
-      //get current location
     cameraActionController.pickExistingPhoto = pickExistingPhoto;
     cameraActionController.takePhotoWithCamera = (camController) => takePhoto(camController);
+  }
+
+  bool _locationInitialized = false;
+
+  void checkLocationPermissionAndInitialize() async {
+    if (!_locationInitialized) {
+      _locationInitialized = true;
+      final prefs = await SharedPreferences.getInstance();
+      bool hasAskedForPermission = prefs.getBool('hasAskedForPermission') ?? false;
+
+      if (!hasAskedForPermission) {
+          await manageLocationPermission();
+          await prefs.setBool('hasAskedForPermission', true);
+      } else {
+          initializeLocation();
+      }
+    }
   }
   
 
   @override
   void dispose() {
+    positionStreamSubscription?.cancel();
     compassListener?.cancel();
     sessionSubscription?.cancel();
-
-    
     convertedSessionID = '';
+
     super.dispose();
   }
-
 
   Future<void> createToken() async {
     debugPrint("Token created");
@@ -185,6 +202,8 @@ void flipCamera() async {
       cameras = loadedCameras;
       isCameraInitialized = true;
       debugPrint("Cameras loaded: ${cameras!.length}");
+      homePageCameraController = CameraController(cameras![0], ResolutionPreset.high, enableAudio: false);
+      homePageCameraController?.initialize();
     });
   } catch (e) {
     debugPrint("Failed to load cameras :$e");
@@ -218,51 +237,68 @@ void flipCamera() async {
     );
   }
 
-
-
   Future<void> initializeLocation() async {
-    if (_locationInitialized) {
-      // If location services have already been initialized, do nothing
-      return;
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      setState(() {
+        locationError = 'Location services are disabled. Please enable them in your device settings.';
+      });
+      return; // Exit if location services are disabled.
     }
 
-    // Check location permission
     LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      // If permissions are denied, request them
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        // Permissions are denied, show a message or handle accordingly
-        setState(() {
-          locationError = 'Location permissions are denied';
-        });
-        return;
-      }
-    }
-
     if (permission == LocationPermission.deniedForever) {
-      // Permissions are permanently denied, show a message or handle accordingly
       setState(() {
-        locationError = 'Location permissions are permanently denied, we cannot request permissions.';
+        locationError = 'Location permissions are permanently denied. Please enable them in your device settings.';
       });
       return;
     }
 
-
-    // Permissions are granted, proceed with initializing location services
-    try {
-      setState(() {
-        // Update state with current location if necessary
-      });
-    } catch (e) {
-      setState(() {
-        locationError = e.toString();
-      });
-    } finally {
-      _locationInitialized = true; // Mark location services as initialized
+    if (permission == LocationPermission.denied) {
+      await manageLocationPermission();
+    } else {
+      // Permissions are granted, start location updates
+      startLocationUpdates();
     }
   }
-  
+
+  Future<void> manageLocationPermission() async {
+    LocationPermission permission = await Geolocator.requestPermission();
+    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      setState(() {
+        locationError = 'Location permissions denied. Please enable them in your device settings.';
+      });
+    } else {
+      // Permissions granted, start location updates
+      startLocationUpdates();
+    }
+  }
+
+  void startLocationUpdates() {
+    const locationSettings = LocationSettings(
+      accuracy: LocationAccuracy.high, // Choose the accuracy level needed for your app.
+      distanceFilter: 10, // Only receive updates every 10 meters.
+    );
+
+    // Cancel any existing subscriptions to avoid multiple listeners
+    positionStreamSubscription?.cancel();
+
+    // Subscribe to the position stream
+    positionStreamSubscription = Geolocator.getPositionStream(locationSettings: locationSettings).listen(
+      (Position position) {
+        debugPrint('Updated location: $latitude, $longitude, $altitude');
+        setState(() {
+          latitude = position.latitude;
+          longitude = position.longitude;
+          currentPosition = LatLng(position.latitude, position.longitude);
+          altitude = position.altitude;
+        });
+      },
+      onError: (e) {
+        debugPrint('Failed to get location: $e');
+      }
+    );
+  }
 
   void _showBottomSheet(BuildContext context) {
     showModalBottomSheet(
@@ -381,14 +417,7 @@ Widget build(BuildContext context) {
     );
   }
 
-  CameraHandler camera = CameraHandler(
-    cameras: cameras!,
-    onControllerCreated: (controller) {
-      homePageCameraController = controller;
-      cameraActionController.setCameraController(controller);
-      
-    },
-  );
+
   if (user != null){
 
     sessionSubscription = database.ref().child('Sessions/${user!.uid}').onValue.listen((event) {
@@ -421,173 +450,123 @@ Widget build(BuildContext context) {
       child: Scaffold(
     body: Stack(
       children: [
-        if (cameras != null)
-          camera,
+        if (homePageCameraController != null && homePageCameraController!.value.isInitialized)
+          CameraPreview(homePageCameraController!),
 
 /// WIDGETS FOR THE LOCATION DATA ON THE TOP RIGHT OF THE SCREEN
-        Positioned(
-          top: 10,
-          right: 10,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.black54, // Background color
-              borderRadius: BorderRadius.circular(10), // Rounded corners
-            ),
-
-            child: FutureBuilder<Position>(
-              future: _locationFuture,
-              builder: (context, snapshot) {
-                if (snapshot.hasData) {
-                  Position position = snapshot.data!;
-
-                  final altitude = appSettings.convertAltitude(snapshot.data!.altitude);
-                  final altitudeUnit = appSettings.useEnglishUnits ? "feet" : "meters";
-
-                  String coordinatesDisplay; // This will hold the string to be displayed
-                  bool showLabels = appSettings.shouldShowLatLonLabels();
-
-                  if (appSettings.representationType == AppSettings.utm || appSettings.representationType == AppSettings.mgrs) {
-                    // For UTM or MGRS, we only display once
-                    coordinatesDisplay = appSettings.formatCoordinate(position.latitude, position.longitude, true);
-                  } else {
-                    // For other settings, show both with labels conditionally
-                    String formattedLatitude = appSettings.formatCoordinate(position.latitude, position.longitude, true);
-                    String formattedLongitude = appSettings.formatCoordinate(position.latitude, position.longitude, false);
-                    coordinatesDisplay = (showLabels ? 'LAT: $formattedLatitude\n' : '$formattedLatitude\n') +
-                                        (showLabels ? 'LON: $formattedLongitude' : formattedLongitude);
-                  }
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        coordinatesDisplay, // Display the coordinates appropriately
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        'Azimuth: ${_azimuth?.toStringAsFixed(3)}°',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        'ALT: ${altitude.toStringAsFixed(2)} $altitudeUnit',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  );
-                } else {
-                  return const Text(
-                    'Fetching location...',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  );
-                }
-              },
+    Positioned(
+      top: 10,
+      right: 10,
+      child: currentPosition != null ? Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: Colors.black54, // Background color
+          borderRadius: BorderRadius.circular(10), // Rounded corners
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Coordinate Display
+          Text(
+            appSettings.representationType == AppSettings.utm || appSettings.representationType == AppSettings.mgrs ?
+              appSettings.formatCoordinate(currentPosition!.latitude, currentPosition!.longitude, true) : // For UTM/MGRS, format as single line
+              "${appSettings.shouldShowLatLonLabels() ? 'LAT: ' : ''}${appSettings.formatCoordinate(currentPosition!.latitude, currentPosition!.longitude, true)}\n" +
+              "${appSettings.shouldShowLatLonLabels() ? 'LON: ' : ''}${appSettings.formatCoordinate(currentPosition!.latitude, currentPosition!.longitude, false)}", // For lat/lon with labels
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
             ),
           ),
+            // Azimuth Display
+            Text(
+              'Azimuth: ${_azimuth?.toStringAsFixed(3)}°',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            // Altitude Display
+            Text(
+              'ALT: ${altitude?.toStringAsFixed(2)} ${appSettings.useEnglishUnits ? "feet" : "meters"}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
+      ) : const Text(
+        'Fetching location...',
+        style: TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    ),
 
 /// WIDGETS FOR THE MINI-MAP ON THE TOP LEFT OF THE SCREEN
-        FutureBuilder<Position>(
-          future: _locationFuture, // Fetch the current location
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const CircularProgressIndicator(); // Show loading indicator
-            } else if (snapshot.hasError) {
-              return Text('Error: ${snapshot.error}'); // Show error message
-            } else if (snapshot.hasData) {
-              // Once data is fetched, update the location display along with the map
-
-              final position = snapshot.data!;
-              final center = LatLng(position.latitude, position.longitude);
-                
-                return StreamBuilder<CompassEvent>(
-                  stream: FlutterCompass.events,
-                  builder: (context, compassSnapshot) {
-                    if (!compassSnapshot.hasData) {
-                      return const CircularProgressIndicator();
-                    }
-
-                    // Compass heading
-                    final double heading = compassSnapshot.data!.heading ?? 0;
-                    final double headingRadians = heading * (pi/180);
-
-                    return Stack(
-                      children: [ 
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          width: _isMapFullScreen ? MediaQuery.of(context).size.width : 100,
-                          height: _isMapFullScreen ? MediaQuery.of(context).size.width : 100,
-                          child: ClipOval(
-                            child: Stack(
-                              children: [
-                                FlutterMap(
-                                  options: MapOptions(
-                                    initialCenter: center,
-                                    initialZoom: _isMapFullScreen ? 5.0 : 13.0,
-                                    interactionOptions: const InteractionOptions(
-                                      flags: InteractiveFlag.none,
-                                    ),
-                                  ),
-                                  children: [
-                                    TileLayer(
-                                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                                      subdomains: const ['a', 'b', 'c'],
-                                    ),
-                                    MarkerLayer(
-                                      markers: [
-                                        Marker(
-                                          width: 60.0,
-                                          height: 60.0,
-                                          point: center,
-                                          child: Transform.rotate(
-                                            angle: headingRadians,
-                                            child: const Icon(Icons.navigation, size: 30, color: Colors.red),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                                ClipOval(
-                                  child: Material(
-                                    color: Colors.transparent, // Keep the overlay transparent
-                                    child: InkWell(
-                                      onTap: () {
-                                        setState(() {
-                                          _isMapFullScreen = !_isMapFullScreen;
-                                        });
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+  Positioned(
+    top: 10,
+    left: 10,
+    child: currentPosition != null ? StreamBuilder<CompassEvent>(
+      stream: FlutterCompass.events,
+      builder: (context, compassSnapshot) {
+        double headingRadians = 0;
+        if (compassSnapshot.hasData) {
+          headingRadians = (compassSnapshot.data!.heading ?? 0) * (pi/180);
+        }
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          width: _isMapFullScreen ? MediaQuery.of(context).size.width : 100,
+          height: _isMapFullScreen ? MediaQuery.of(context).size.width : 100,
+          child: ClipOval(
+            child: Stack(
+              children: [
+                FlutterMap(
+                  options: MapOptions(
+                    initialCenter: LatLng(currentPosition!.latitude, currentPosition!.longitude),
+                    initialZoom: _isMapFullScreen ? 5.0 : 13.0,
+                    interactionOptions: const InteractionOptions(
+                      flags: InteractiveFlag.none
+                    ),
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      subdomains: const ['a', 'b', 'c'],
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          width: 60.0,
+                          height: 60.0,
+                          point: LatLng(currentPosition!.latitude, currentPosition!.longitude),
+                          child: Transform.rotate(
+                            angle: headingRadians,
+                            child: const Icon(Icons.navigation, size: 30, color: Colors.red),
                           ),
                         ),
-                        
                       ],
-                    );
-                  }
-                );
-                
-              
-            } else {
-              return const Text('No location data');
-            }
-          },
-        ),
+                    ),
+                  ],
+                ),
+                Material(
+                  color: Colors.transparent, // Keep the overlay transparent
+                  child: InkWell(
+                    onTap: () {
+                      setState(() {
+                        _isMapFullScreen = !_isMapFullScreen;
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    ) : const CircularProgressIndicator(),
+  ),
         // Correctly positioned container on the top right for location info
         
         
