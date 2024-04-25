@@ -68,6 +68,8 @@ class _HomePageState extends State<HomePage> {
   double? latitude;
   double? longitude;
   double? altitude;
+
+  MapController mapController = MapController();
   LatLng? currentPosition;
 
   MapController mapController = MapController();
@@ -296,6 +298,7 @@ void flipCamera() async {
           altitude = position.altitude;
           mapController.move(currentPosition!, 13);
         });
+        mapController.move(currentPosition!, 13.0);
       },
       onError: (e) {
         debugPrint('Failed to get location: $e');
