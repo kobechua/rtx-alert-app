@@ -68,6 +68,8 @@ class _HomePageState extends State<HomePage> {
   double? latitude;
   double? longitude;
   double? altitude;
+
+  MapController mapController = MapController();
   LatLng? currentPosition;
 
   bool _isMapFullScreen = false;
@@ -293,6 +295,7 @@ void flipCamera() async {
           currentPosition = LatLng(position.latitude, position.longitude);
           altitude = position.altitude;
         });
+        mapController.move(currentPosition!, 13.0);
       },
       onError: (e) {
         debugPrint('Failed to get location: $e');
@@ -523,6 +526,7 @@ Widget build(BuildContext context) {
             child: Stack(
               children: [
                 FlutterMap(
+                  mapController: mapController,
                   options: MapOptions(
                     initialCenter: LatLng(currentPosition!.latitude, currentPosition!.longitude),
                     initialZoom: _isMapFullScreen ? 5.0 : 13.0,
