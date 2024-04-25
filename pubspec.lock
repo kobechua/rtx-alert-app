@@ -569,7 +569,7 @@ packages:
     source: hosted
     version: "1.10.0"
   mgrs_dart:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: mgrs_dart
       sha256: fb89ae62f05fa0bb90f70c31fc870bcbcfd516c843fb554452ab3396f78586f7
@@ -673,7 +673,7 @@ packages:
     source: hosted
     version: "1.0.1"
   proj4dart:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: proj4dart
       sha256: c8a659ac9b6864aa47c171e78d41bbe6f5e1d7bd790a5814249e6b68bc44324e
